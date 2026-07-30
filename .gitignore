@@ -1,0 +1,21 @@
+# Compilados
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Binarios
+*.out
+
+# Carpeta de binarios (si la usas)
+bin/
+
+# Variables de entorno
+.env
+
+# Configuración del editor
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
