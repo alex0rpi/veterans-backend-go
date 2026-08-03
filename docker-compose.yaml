@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: veterans-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: alex-veterans
+      POSTGRES_PASSWORD: password-alex-veterans
+      POSTGRES_DB: veterans
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - veterans-postgres-data:/var/lib/postgresql/data
+      # This is the path INSIDE THE CONTAINER where PostgreSQL will store its data. The volume named veterans-postgres-data is mounted to this path, ensuring that the database data persists even if the container is stopped or removed.
+volumes:
+  veterans-postgres-data:
+    # This is the name of the volume that will be created and used by the postgres service to persist data.
+    driver: local
+    # this is a default value; it means that the volume will be stored on the local machine where Docker is running, rather than in a remote location or cloud storage.
