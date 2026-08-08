@@ -1,10 +1,14 @@
 package models
 
-import "mime/multipart"
+type ProcessedMedia struct {
+	ID int64
 
-type UploadMediaRequest struct {
-	File             multipart.File
+	ObjectKey string
+
 	OriginalFilename string
 	MimeType         string
 	FileSize         int64
+
+	Width  int
+	Height int
 }

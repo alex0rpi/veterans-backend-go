@@ -2,12 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"veterans-go-chi-server/internal/models"
 	"veterans-go-chi-server/internal/services"
+	"veterans-go-chi-server/internal/utils"
 )
-
 
 type MediaHandler struct {
 	service services.MediaService
@@ -20,42 +19,35 @@ func NewMediaHandler(service services.MediaService) *MediaHandler {
 }
 
 func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
-	
-	file, header, err := r.FormFile("image")
 
+	file, header, err := r.FormFile("image")
 	if err != nil {
-		http.Error(w, "Error retrieving the file from the request: " + err.Error(), http.StatusBadRequest)
+		http.Error(w, "Error retrieving the file from the request: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-
 	defer file.Close()
 
-	buffer := make([]byte, 512)
-	_, err = file.Read(buffer)
-
+	mimeType, err := utils.GetMimeType(file)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(
+			w,
+			"Error detecting the file mime type: "+err.Error(),
+			http.StatusInternalServerError,
+		)
 		return
 	}
 
-	_, err = file.Seek(0, io.SeekStart)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	uploadRequest := models.UploadMediaRequest{
+		File:             file,
+		OriginalFilename: header.Filename,
+		MimeType:         mimeType,
+		FileSize:         header.Size,
 	}
 
-	mimeType := http.DetectContentType(buffer)
-
-	uploadRequest := models.UploadMediaRequest {
-		File: 				file,
-		OriginalFilename: 	header.Filename,
-		MimeType: 			mimeType,
-		FileSize: 			header.Size,
-	}
-
-	result, err := h.service.Upload(
+	// * Invoque the Upload method of the MediaService to handle the upload request
+	processedMedia, err := h.service.Upload(
 		r.Context(),
-		 uploadRequest,
+		uploadRequest,
 	)
 
 	if err != nil {
@@ -63,12 +55,6 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := models.UploadMediaResponse{
-		Filename: result.OriginalFilename,
-		Size: result.FileSize,
-		MimeType: result.MimeType,
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(processedMedia)
 }
