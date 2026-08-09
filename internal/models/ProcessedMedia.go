@@ -8,4 +8,9 @@ type ProcessedMedia struct {
 	FileSize         int64
 	Width  int
 	Height int
+
+	// BlurKey string
+	// SmallKey string
+	// MediumKey string
+	// LargeKey string
 }

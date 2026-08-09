@@ -6,27 +6,26 @@ export
 
 GOOSE_DIR := migrations
 
-#Go commands
-.PHONY: run
+.PHONY: run build lint \
+        docker-up docker-down docker-start docker-stop docker-logs \
+        migrate-create migrate-up migrate-down migrate-status
+
+#! Go commands
 run:
 	go run ./cmd/api
 
-.PHONY: build
 build:
 	go build -o bin/api ./cmd/api
 
-.PHONY: lint
 lint:
 	golangci-lint run
 
 #* DOCKER COMMANDS --------------------------------
-.PHONY: docker-up docker-down
 docker-up:
 	docker compose up -d
 docker-down:
 	docker compose down
 
-.PHONY: docker-start docker-stop docker-logs
 docker-start:
 	docker compose start
 docker-stop:
@@ -34,22 +33,18 @@ docker-stop:
 docker-logs:
 	docker compose logs -f postgres
 
-# MIGRATION COMMANDS --------------------------------
-.PHONY: migrate-create
+#> MIGRATION COMMANDS --------------------------------
 migrate-create:
 	goose -s -dir $(GOOSE_DIR) create $(name) sql
 
-.PHONY: migrate-up
 migrate-up:
 # 	goose -dir-env $(ENV_FILE) -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" up
 	goose -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" up
 
-.PHONY: migrate-down
 migrate-down:
 # 	goose -env $(ENV_FILE) -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" down
 	goose -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" down
 
-.PHONY: migrate-status
 migrate-status:
 # 	goose -dir-env $(ENV_FILE) -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" status
 	goose -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" status

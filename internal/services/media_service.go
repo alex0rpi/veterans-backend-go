@@ -2,6 +2,10 @@ package services
 
 import (
 	"context"
+	"image"
+	"log"
+
+	"veterans-go-chi-server/internal/imaging"
 	"veterans-go-chi-server/internal/models"
 	"veterans-go-chi-server/internal/repositories"
 	"veterans-go-chi-server/internal/utils"
@@ -52,10 +56,30 @@ func (s *mediaService) Upload(
 	if err != nil {
 		return nil, err
 	}
-
 	if !utils.ImageDimensionsAreValid(width, height) {
 		return nil, ErrImageDimensionsOutOfRange
 	}
+
+
+	//* Obtain the image from the request file. This consists of a bunch of bytes that represent the image.
+	img, _, err := image.Decode(request.File)
+	if err != nil {
+		return nil, err
+	}
+
+	//* Generate the different image variants from the bunch of bytes that represent the image. This will return a slice of GeneratedVariant structs, each containing the name of the variant and the corresponding image data.
+	variants, err := imaging.GenerateVariants(img)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, variant := range variants {
+	log.Printf(
+		"Generated %s: %d bytes",
+		variant.Name,
+		len(variant.Data),
+	)
+}
 
 	objectKey := utils.GenerateObjectKey(request.OriginalFilename)
 
