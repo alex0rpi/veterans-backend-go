@@ -39,3 +39,12 @@ func GetMimeType(file multipart.File) (string, error) {
 
 	return http.DetectContentType(buffer), nil
 }
+
+func ImageDimensionsAreValid(width, height int) bool {
+	const maxDimension = 8000
+
+	return width > 0 &&
+		width <= maxDimension &&
+		height > 0 &&
+		height <= maxDimension
+}

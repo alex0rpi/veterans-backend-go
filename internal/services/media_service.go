@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"log"
 	"veterans-go-chi-server/internal/models"
 	"veterans-go-chi-server/internal/repositories"
 	"veterans-go-chi-server/internal/utils"
@@ -32,28 +31,57 @@ func (s *mediaService) Upload(
 	ctx context.Context,
 	request models.UploadMediaRequest,
 ) (*models.ProcessedMedia, error) {
+
+	const maxFileSize int64 = 15 * 1024 *1024 // 15 MB
+
+	if request.FileSize > maxFileSize {
+		return nil, ErrFileTooLarge
+	}
+
+	mimeType, err := utils.GetMimeType(request.File)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isAllowedMimeType(mimeType) {
+		return nil, ErrUnsupportedMediaType
+	}
+
+
 	width, height, err := utils.GetImageDimensions(request.File)
 	if err != nil {
 		return nil, err
 	}
-	objectKey := utils.GenerateObjectKeyy(request.OriginalFilename)
+
+	if !utils.ImageDimensionsAreValid(width, height) {
+		return nil, ErrImageDimensionsOutOfRange
+	}
+
+	objectKey := utils.GenerateObjectKey(request.OriginalFilename)
 
 	processed := &models.ProcessedMedia{
 		ObjectKey:        objectKey,
 		OriginalFilename: request.OriginalFilename,
-		MimeType:         request.MimeType,
+		MimeType:         mimeType,
 		FileSize:         request.FileSize,
 		Width:            width,
 		Height:           height,
 	}
 
-	log.Printf("BEFORE CREATE: %+v", processed)
 	err = s.repository.Create(ctx, processed)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("AFTER CREATE: %+v", processed)
 
 	return processed, nil
 
+}
+
+func isAllowedMimeType(mimeType string) bool {
+	switch mimeType {
+		case "image/jpeg", "image/png":
+			return true
+		default:
+			return false
+	}
 }

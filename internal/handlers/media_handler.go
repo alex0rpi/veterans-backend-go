@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"veterans-go-chi-server/internal/models"
 	"veterans-go-chi-server/internal/services"
-	"veterans-go-chi-server/internal/utils"
 )
 
 type MediaHandler struct {
@@ -27,30 +27,30 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	mimeType, err := utils.GetMimeType(file)
-	if err != nil {
-		http.Error(
-			w,
-			"Error detecting the file mime type: "+err.Error(),
-			http.StatusInternalServerError,
-		)
-		return
-	}
-
 	uploadRequest := models.UploadMediaRequest{
 		File:             file,
 		OriginalFilename: header.Filename,
-		MimeType:         mimeType,
 		FileSize:         header.Size,
 	}
 
-	// * Invoque the Upload method of the MediaService to handle the upload request
 	processedMedia, err := h.service.Upload(
 		r.Context(),
 		uploadRequest,
 	)
 
 	if err != nil {
+		if errors.Is(err, services.ErrUnsupportedMediaType) {
+			http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
+			return
+		}
+		if errors.Is(err, services.ErrFileTooLarge) {
+			http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
+			return
+		}
+		if errors.Is(err, services.ErrImageDimensionsOutOfRange) {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
