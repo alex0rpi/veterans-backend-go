@@ -11,12 +11,10 @@ GOOSE_DIR := migrations
         migrate-create migrate-up migrate-down migrate-status
 
 #! Go commands
-run:
+run: 
 	go run ./cmd/api
-
 build:
 	go build -o bin/api ./cmd/api
-
 lint:
 	golangci-lint run
 
@@ -25,7 +23,6 @@ docker-up:
 	docker compose up -d
 docker-down:
 	docker compose down
-
 docker-start:
 	docker compose start
 docker-stop:

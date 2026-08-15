@@ -11,6 +11,7 @@ import (
 	"veterans-go-chi-server/internal/handlers"
 	"veterans-go-chi-server/internal/repositories"
 	"veterans-go-chi-server/internal/services"
+	"veterans-go-chi-server/internal/storage"
 )
 
 func main() {
@@ -21,8 +22,9 @@ func main() {
 
 	defer pool.Close()
 
+	mediaStorage := storage.NewLocalStorage("./storage")
 	mediaRepository := repositories.NewMediaRepository(pool)
-	mediaService := services.NewMediaService(mediaRepository)
+	mediaService := services.NewMediaService(mediaRepository, mediaStorage)
 	mediaHandler := handlers.NewMediaHandler(mediaService)
 
 	r := chi.NewRouter()

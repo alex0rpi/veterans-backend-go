@@ -3,6 +3,7 @@ package imaging
 import (
 	"bytes"
 	"image"
+	"veterans-go-chi-server/internal/constants"
 
 	"github.com/deepteams/webp"
 	"github.com/disintegration/imaging"
@@ -15,10 +16,10 @@ type Variant struct {
 
 // Slice of image variants that can be used for resizing images.
 var Variants = []Variant{
-	{ Name: "blur", MaxDimension: 32},
-	{ Name: "small", MaxDimension: 480},
-	{ Name: "medium", MaxDimension: 1024},
-	{ Name: "large", MaxDimension: 1920},
+	{ Name: constants.VariantBlur, MaxDimension: 32},
+	{ Name: constants.VariantSmall, MaxDimension: 480},
+	{ Name: constants.VariantMedium, MaxDimension: 1024},
+	{ Name: constants.VariantLarge, MaxDimension: 1920},
 }
 
 type GeneratedVariant struct {
@@ -40,9 +41,9 @@ func GenerateVariants(img image.Image) ([]GeneratedVariant, error) {
 		//* Do perform the actual resizing and encoding of the image
 		resizedImg := resizeImage(img, newWidth, newHeight)
 
-		if variant.Name == "blur" {
+		/* if variant.Name == "blur" {
 			resizedImg = imaging.Blur(resizedImg, 2)
-		}
+		} */
 
 		imgData, err := encodeToWebP(resizedImg, newWidth, newHeight)
 		if err != nil {

@@ -9,8 +9,8 @@ type ProcessedMedia struct {
 	Width  int
 	Height int
 
-	// BlurKey string
-	// SmallKey string
-	// MediumKey string
-	// LargeKey string
+	BlurKey string
+	SmallKey string
+	MediumKey string
+	LargeKey string
 }

@@ -31,9 +31,13 @@ func (r *MediaRepository) Create(
 			mime_type,
 			width,
 			height,
-			filesize
+			filesize,
+			blur_key,
+			small_key,
+			medium_key,
+			large_key
 		)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id
 		`,
 		image.ObjectKey,
@@ -42,5 +46,9 @@ func (r *MediaRepository) Create(
 		image.Width,
 		image.Height,
 		image.FileSize,
+		image.BlurKey,
+		image.SmallKey,
+		image.MediumKey,
+		image.LargeKey,
 	).Scan(&image.ID)
 }

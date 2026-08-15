@@ -13,6 +13,9 @@ bin/
 # Variables de entorno
 .env
 
+# Archivos almacenados
+storage/
+
 # Configuración del editor
 .vscode/
 .idea/
