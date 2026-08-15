@@ -15,7 +15,7 @@ func GenerateObjectKey(originalFilename string) string {
 
 	extension := strings.ToLower(filepath.Ext(originalFilename))
 
-	return "images/" + id + "/" + constants.VariantOriginal + extension
+	return id + "/" + constants.VariantOriginal + extension
 }
 
 func GenerateVariantObjectKey(objectKey, variantName string) string {

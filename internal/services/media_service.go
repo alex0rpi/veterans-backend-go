@@ -43,29 +43,20 @@ func NewMediaService(
 func (s *mediaService) Upload(
 	ctx context.Context,
 	request models.UploadMediaRequest,
-) (*models.ProcessedMedia, error) {
+) (processed *models.ProcessedMedia, err error) {
 
-	const maxFileSize int64 = 15 * 1024 * 1024 // 15 MB
+	savedKeys := make([]string, 0)
 
-	if request.FileSize > maxFileSize {
-		return nil, ErrFileTooLarge
-	}
+	// rollback: any error return after this point cleans up whatever was already saved to storage
+	defer func() {
+		if err != nil {
+			executeRollback(ctx, s.storage, savedKeys)
+		}
+	}()
 
-	mimeType, err := utils.GetMimeType(request.File)
+	mimeType, width, height, err := performRequestValidations(request)
 	if err != nil {
 		return nil, err
-	}
-
-	if !isAllowedMimeType(mimeType) {
-		return nil, ErrUnsupportedMediaType
-	}
-
-	width, height, err := utils.GetImageDimensions(request.File)
-	if err != nil {
-		return nil, err
-	}
-	if !utils.ImageDimensionsAreValid(width, height) {
-		return nil, ErrImageDimensionsOutOfRange
 	}
 
 	objectKey := utils.GenerateObjectKey(request.OriginalFilename)
@@ -93,10 +84,11 @@ func (s *mediaService) Upload(
 	}
 	//End of variants generation
 
-	//Save the original and generated variants to storage.
+	//Save the original storage.
 	if err := s.storage.Save(ctx, objectKey, originalData); err != nil {
 		return nil, err
 	}
+	savedKeys = append(savedKeys, objectKey)
 
 	//Save the generated variants to the storage
 	variantKeys := make(map[string]string, len(variants))
@@ -107,10 +99,11 @@ func (s *mediaService) Upload(
 		if err := s.storage.Save(ctx, variantKey, variant.Data); err != nil {
 			return nil, err
 		}
+		savedKeys = append(savedKeys, variantKey)
 		variantKeys[variant.Name] = variantKey
 	}
 
-	processed := &models.ProcessedMedia{
+	processed = &models.ProcessedMedia{
 		ObjectKey:        objectKey,
 		OriginalFilename: request.OriginalFilename,
 		MimeType:         mimeType,
@@ -121,16 +114,46 @@ func (s *mediaService) Upload(
 		SmallKey:         variantKeys[constants.VariantSmall],
 		MediumKey:        variantKeys[constants.VariantMedium],
 		LargeKey:         variantKeys[constants.VariantLarge],
+		MediaContext:     request.MediaContext,
+		Season:           request.Season,
+		Category:         request.Category,
+		DisplayOrder:     request.DisplayOrder,
 	}
 
 	// Save the processed media information in the database
-	err = s.repository.Create(ctx, processed)
-	if err != nil {
+	if err = s.repository.Create(ctx, processed);  err != nil {
 		return nil, err
 	}
 
 	return processed, nil
 
+}
+
+func performRequestValidations(request models.UploadMediaRequest) (string, int, int, error) {
+	const maxFileSize int64 = 15 * 1024 * 1024 // 15 MB
+
+	if request.FileSize > maxFileSize {
+		return "", 0, 0, ErrFileTooLarge
+	}
+
+	mimeType, err := utils.GetMimeType(request.File)
+	if err != nil {
+		return "", 0, 0, err
+	}
+
+	if !isAllowedMimeType(mimeType) {
+		return "", 0, 0, ErrUnsupportedMediaType
+	}
+
+	width, height, err := utils.GetImageDimensions(request.File)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	if !utils.ImageDimensionsAreValid(width, height) {
+		return "", 0, 0, ErrImageDimensionsOutOfRange
+	}
+
+	return mimeType, width, height, nil
 }
 
 func isAllowedMimeType(mimeType string) bool {
@@ -139,5 +162,13 @@ func isAllowedMimeType(mimeType string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func executeRollback(ctx context.Context, storage storage.MediaStorage, keys []string) {
+	for _, key := range keys {
+		if err := storage.Delete(ctx, key); err != nil {
+			log.Printf("rollback: failed to delete %s: %v", key, err)
+		}
 	}
 }

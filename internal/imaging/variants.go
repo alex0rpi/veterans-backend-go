@@ -38,13 +38,12 @@ func GenerateVariants(img image.Image) ([]GeneratedVariant, error) {
 			  variant.MaxDimension,
 			)
 
-		//* Do perform the actual resizing and encoding of the image
-		resizedImg := resizeImage(img, newWidth, newHeight)
-
-		/* if variant.Name == "blur" {
-			resizedImg = imaging.Blur(resizedImg, 2)
-		} */
-
+		//* Resize image
+		resizedImg := imaging.Resize(img, newWidth, newHeight, imaging.Lanczos)
+		
+		/* if variant.Name == "blur" { resizedImg = imaging.Blur(resizedImg, 2) } */
+			
+		//* Encode image to WebP format
 		imgData, err := encodeToWebP(resizedImg, newWidth, newHeight)
 		if err != nil {
 			return nil, err
@@ -86,8 +85,4 @@ func calculateVariantSize( width int, height int, maxDimension int) (int, int) {
 		newWidth := width * maxDimension / height
 		return newWidth, newHeight
 	}
-}
-
-func resizeImage(img image.Image, width, height int) image.Image {
-	return imaging.Resize(img, width, height, imaging.Lanczos)
 }

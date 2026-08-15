@@ -35,9 +35,15 @@ func (r *MediaRepository) Create(
 			blur_key,
 			small_key,
 			medium_key,
-			large_key
+			large_key,
+			media_context,
+			season,
+			category,
+			display_order
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5,
+			$6, $7, $8, $9, $10,
+			$11, $12, $13, $14)
 		RETURNING id
 		`,
 		image.ObjectKey,
@@ -50,5 +56,9 @@ func (r *MediaRepository) Create(
 		image.SmallKey,
 		image.MediumKey,
 		image.LargeKey,
+		image.MediaContext,
+		image.Season,
+		image.Category,
+		image.DisplayOrder,
 	).Scan(&image.ID)
 }
