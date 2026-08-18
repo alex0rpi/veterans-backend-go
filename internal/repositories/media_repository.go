@@ -28,6 +28,7 @@ func (r *MediaRepository) Create(
 		INSERT INTO image_metadata (
 			object_key,
 			original_filename,
+			file_description,
 			mime_type,
 			width,
 			height,
@@ -43,11 +44,12 @@ func (r *MediaRepository) Create(
 		)
 		VALUES ($1, $2, $3, $4, $5,
 			$6, $7, $8, $9, $10,
-			$11, $12, $13, $14)
+			$11, $12, $13, $14, $15)
 		RETURNING id
 		`,
 		image.ObjectKey,
 		image.OriginalFilename,
+		image.FileDescription,
 		image.MimeType,
 		image.Width,
 		image.Height,
@@ -61,4 +63,16 @@ func (r *MediaRepository) Create(
 		image.Category,
 		image.DisplayOrder,
 	).Scan(&image.ID)
+}
+
+func (r *MediaRepository) Delete(
+	ctx context.Context,
+	id string,
+) error {
+	_, err := r.db.Exec(
+		ctx,
+		"DELETE FROM image_metadata WHERE id = $1",
+		id,
+	)
+	return err
 }

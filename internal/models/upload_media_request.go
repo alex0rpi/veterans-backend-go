@@ -7,8 +7,9 @@ type UploadMediaRequest struct {
 	OriginalFilename string
 	FileSize         int64
 
-	MediaContext   	*string `json:"media_context,omitempty"`
-	Season       	*string `json:"season,omitempty"`
-	Category     	*string `json:"category,omitempty"`
-	DisplayOrder 	*int    `json:"display_order,omitempty"`
+	FileDescription *string `json:"file_description,omitempty"`
+	MediaContext    *string `json:"media_context,omitempty"`
+	Season          *string `json:"season,omitempty"`
+	Category        *string `json:"category,omitempty"`
+	DisplayOrder    *int    `json:"display_order,omitempty"`
 }

@@ -15,11 +15,11 @@ func GenerateObjectKey(originalFilename string) string {
 
 	extension := strings.ToLower(filepath.Ext(originalFilename))
 
-	return id + "/" + constants.VariantOriginal + extension
+	return id + "/" + string(constants.VariantOriginal) + extension
 }
 
 func GenerateVariantObjectKey(objectKey, variantName string) string {
 	directory := path.Dir(objectKey)
 
-	return path.Join(directory, variantName + ".webp")
+	return path.Join(directory, variantName+".webp")
 }

@@ -10,21 +10,21 @@ import (
 )
 
 type Variant struct {
-	Name			string
-	MaxDimension	int
+	Name         string
+	MaxDimension int
 }
 
 // Slice of image variants that can be used for resizing images.
 var Variants = []Variant{
-	{ Name: constants.VariantBlur, MaxDimension: 32},
-	{ Name: constants.VariantSmall, MaxDimension: 480},
-	{ Name: constants.VariantMedium, MaxDimension: 1024},
-	{ Name: constants.VariantLarge, MaxDimension: 1920},
+	{Name: string(constants.VariantBlur), MaxDimension: 32},
+	{Name: string(constants.VariantSmall), MaxDimension: 480},
+	{Name: string(constants.VariantMedium), MaxDimension: 1024},
+	{Name: string(constants.VariantLarge), MaxDimension: 1920},
 }
 
 type GeneratedVariant struct {
-	Name			string
-	Data			[]byte
+	Name string
+	Data []byte
 }
 
 func GenerateVariants(img image.Image) ([]GeneratedVariant, error) {
@@ -34,15 +34,15 @@ func GenerateVariants(img image.Image) ([]GeneratedVariant, error) {
 		//* Calculate dimensions
 		newWidth, newHeight := calculateVariantSize(
 			img.Bounds().Dx(),
-			 img.Bounds().Dy(),
-			  variant.MaxDimension,
-			)
+			img.Bounds().Dy(),
+			variant.MaxDimension,
+		)
 
 		//* Resize image
 		resizedImg := imaging.Resize(img, newWidth, newHeight, imaging.Lanczos)
-		
+
 		/* if variant.Name == "blur" { resizedImg = imaging.Blur(resizedImg, 2) } */
-			
+
 		//* Encode image to WebP format
 		imgData, err := encodeToWebP(resizedImg, newWidth, newHeight)
 		if err != nil {
@@ -63,7 +63,7 @@ func encodeToWebP(img image.Image, width, height int) ([]byte, error) {
 
 	err := webp.Encode(&buffer, img, &webp.EncoderOptions{
 		Quality: 80,
-		Method: 4,
+		Method:  4,
 	})
 	if err != nil {
 		return nil, err
@@ -71,13 +71,13 @@ func encodeToWebP(img image.Image, width, height int) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func calculateVariantSize( width int, height int, maxDimension int) (int, int) {
+func calculateVariantSize(width int, height int, maxDimension int) (int, int) {
 	if width <= maxDimension && height <= maxDimension {
 		return width, height
 	}
 	// If not, calculate the new dimensions while maintaining the aspect ratio
 	if width > height {
-		newWidth := maxDimension // set the biggest dimension to maxDimension
+		newWidth := maxDimension                   // set the biggest dimension to maxDimension
 		newHeight := height * maxDimension / width // proportional calculation to adapt the other dimension
 		return newWidth, newHeight
 	} else {

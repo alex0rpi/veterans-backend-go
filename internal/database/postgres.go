@@ -12,7 +12,7 @@ import (
 func NewPostgresPool() (*pgxpool.Pool, error) {
 	err := godotenv.Load()
 	if err != nil {
-		return nil, fmt.Errorf("Error loading .env file: %w", err)
+		return nil, fmt.Errorf("error loading .env file: %w", err)
 	}
 
 	databaseUrl := os.Getenv("DATABASE_URL")

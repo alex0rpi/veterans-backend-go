@@ -21,11 +21,15 @@ type MediaService interface {
 		ctx context.Context,
 		request models.UploadMediaRequest,
 	) (*models.ProcessedMedia, error)
+	/* Delete (
+		ctx context.Context, 
+		id string,
+	) error */
 }
 
 type mediaService struct {
-	repository 		*repositories.MediaRepository
-	storage			storage.MediaStorage
+	repository *repositories.MediaRepository
+	storage    storage.MediaStorage
 }
 
 // This function is effectively a constructor. It returns a pointer to a mediaService struct, which implements the MediaService interface.
@@ -44,6 +48,10 @@ func (s *mediaService) Upload(
 	ctx context.Context,
 	request models.UploadMediaRequest,
 ) (processed *models.ProcessedMedia, err error) {
+
+	if err := validateUploadMetadata(request); err != nil {
+		return nil, err
+	}
 
 	savedKeys := make([]string, 0)
 
@@ -85,7 +93,9 @@ func (s *mediaService) Upload(
 	//End of variants generation
 
 	//Save the original storage.
-	if err := s.storage.Save(ctx, objectKey, originalData); err != nil {
+	if err := s.storage.Save(
+		ctx, objectKey, originalData, mimeType,
+	); err != nil {
 		return nil, err
 	}
 	savedKeys = append(savedKeys, objectKey)
@@ -96,7 +106,9 @@ func (s *mediaService) Upload(
 	for _, variant := range variants {
 		log.Printf("Saving variant: %s, size: %d bytes", variant.Name, len(variant.Data))
 		variantKey := utils.GenerateVariantObjectKey(objectKey, variant.Name)
-		if err := s.storage.Save(ctx, variantKey, variant.Data); err != nil {
+		if err := s.storage.Save(
+			ctx, variantKey, variant.Data, "image/webp",
+		); err != nil {
 			return nil, err
 		}
 		savedKeys = append(savedKeys, variantKey)
@@ -106,14 +118,15 @@ func (s *mediaService) Upload(
 	processed = &models.ProcessedMedia{
 		ObjectKey:        objectKey,
 		OriginalFilename: request.OriginalFilename,
+		FileDescription:  request.FileDescription,
 		MimeType:         mimeType,
 		FileSize:         request.FileSize,
 		Width:            width,
 		Height:           height,
-		BlurKey:          variantKeys[constants.VariantBlur],
-		SmallKey:         variantKeys[constants.VariantSmall],
-		MediumKey:        variantKeys[constants.VariantMedium],
-		LargeKey:         variantKeys[constants.VariantLarge],
+		BlurKey:          variantKeys[string(constants.VariantBlur)],
+		SmallKey:         variantKeys[string(constants.VariantSmall)],
+		MediumKey:        variantKeys[string(constants.VariantMedium)],
+		LargeKey:         variantKeys[string(constants.VariantLarge)],
 		MediaContext:     request.MediaContext,
 		Season:           request.Season,
 		Category:         request.Category,
@@ -121,13 +134,31 @@ func (s *mediaService) Upload(
 	}
 
 	// Save the processed media information in the database
-	if err = s.repository.Create(ctx, processed);  err != nil {
+	if err = s.repository.Create(ctx, processed); err != nil {
 		return nil, err
 	}
 
 	return processed, nil
 
 }
+
+/* func (s *mediaService) Delete(ctx context.Context, objectKey string) error {
+
+	// First, check if the media exists in the database and obtain its metadata, specifically the objectKey.
+	
+
+	// Delete the media file from storage
+	if err := s.storage.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	// Delete the media record from the database
+	if err := s.repository.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	return nil
+} */
 
 func performRequestValidations(request models.UploadMediaRequest) (string, int, int, error) {
 	const maxFileSize int64 = 15 * 1024 * 1024 // 15 MB

@@ -15,6 +15,9 @@ run:
 	go run ./cmd/api
 build:
 	go build -o bin/api ./cmd/api
+format:
+# This will format all Go files in the current directory and its subdirectories.
+	go fmt ./...
 lint:
 	golangci-lint run
 
