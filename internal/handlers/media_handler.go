@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"veterans-go-chi-server/internal/models"
@@ -86,6 +87,56 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(processedMedia); err != nil {
+		http.Error(w, "Error encoding response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
+
+	log.Printf("URL=%s - context=%q - season=%q",
+    r.URL.String(),
+    r.URL.Query().Get("media_context"),
+    r.URL.Query().Get("season"),
+)
+
+	var season *string
+	seasonParam := r.URL.Query().Get("season")
+	if seasonParam != "" {
+		season = &seasonParam
+	}
+
+	listMediaRequest := models.ListMediaRequest{
+		MediaContext:     r.URL.Query().Get("media_context"),
+		Season:           season,
+	}
+
+	log.Printf(
+    "REQUEST context=%q seasonParam=%q seasonPointerNil=%t",
+    listMediaRequest.MediaContext,
+    seasonParam,
+    listMediaRequest.Season == nil,
+)
+
+	mediaList, err := h.service.ListMedia(
+		r.Context(),
+		listMediaRequest,
+	)
+
+	if err != nil {
+		if errors.Is(err, services.ErrInvalidMediaContext) ||
+			errors.Is(err, services.ErrInvalidSeason) ||
+			errors.Is(err, services.ErrSeasonRequiredForSeasonSlider) ||
+			errors.Is(err, services.ErrSeasonNotAllowedForRequestedContext) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(mediaList); err != nil {
 		http.Error(w, "Error encoding response: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

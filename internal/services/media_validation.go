@@ -1,7 +1,10 @@
 package services
 
+// Validation helpers specific to the mediaService.
+
 import (
 	"strconv"
+	"time"
 	"veterans-go-chi-server/internal/constants"
 	"veterans-go-chi-server/internal/models"
 )
@@ -22,9 +25,33 @@ func validateUploadMetadata(request models.UploadMediaRequest) error {
 	return nil
 }
 
+func validateListMediaRequest(request models.ListMediaRequest) error {
+
+	if !isValidMediaContext(request.MediaContext) {
+		return ErrInvalidMediaContext
+	}
+
+	if request.Season != nil && !isValidSeason(*request.Season) {
+		return ErrInvalidSeason
+	}
+
+	if request.MediaContext == string(constants.MediaContextSeasonSlider) && request.Season == nil {
+		return ErrSeasonRequiredForSeasonSlider
+	}
+
+	if request.MediaContext != string(constants.MediaContextSeasonSlider) && request.Season != nil {
+		return ErrSeasonNotAllowedForRequestedContext
+	}
+
+	return nil
+}
+
 func isValidMediaContext(value string) bool {
 	switch value {
-	case string(constants.MediaContextSeasonSlider), string(constants.MediaContextHomeSlider):
+	case 
+		string(constants.MediaContextSeasonSlider), 
+		string(constants.MediaContextHomeSlider), 
+		string(constants.MediaContextSingle):
 		return true
 	default:
 		return false
@@ -54,6 +81,11 @@ func isValidSeason(value string) bool {
 
 	end, err := strconv.Atoi(value[2:])
 	if err != nil {
+		return false
+	}
+
+	currentYear := time.Now().Year() % 100 // Get the last two digits of the current year
+	if start < 0 || start > currentYear || end < 0 {
 		return false
 	}
 

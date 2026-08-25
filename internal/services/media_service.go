@@ -21,29 +21,40 @@ type MediaService interface {
 		ctx context.Context,
 		request models.UploadMediaRequest,
 	) (*models.ProcessedMedia, error)
-	/* Delete (
-		ctx context.Context, 
-		id string,
-	) error */
+	ListMedia(
+		ctx context.Context,
+		listMediaRequest models.ListMediaRequest,
+	) ([]models.ListMediaResponse, error)
 }
 
+// This struct is the blueprint containing the dependencies required for the media service to function.
 type mediaService struct {
 	repository *repositories.MediaRepository
 	storage    storage.MediaStorage
+	publicBaseURL string
 }
 
 // This function is effectively a constructor. It returns a pointer to a mediaService struct, which implements the MediaService interface.
 func NewMediaService(
 	repository *repositories.MediaRepository,
 	storage storage.MediaStorage,
+	publicBaseURL string,
 ) MediaService {
 	return &mediaService{
 		repository: repository,
 		storage:    storage,
+		publicBaseURL: publicBaseURL,
 	}
 }
 
-// The initial (s *mediaService) is a method receiver, which means that this function is associated with the mediaService struct.
+const maxImageFileSize int64 = 15 * 1024 * 1024 // 15 MB
+
+var allowedImageMimeTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+}
+
+// The initial (s *mediaService) is a method receiver, which means that this function is associated with the mediaService struct, and therefore can access its fields and methods.
 func (s *mediaService) Upload(
 	ctx context.Context,
 	request models.UploadMediaRequest,
@@ -142,29 +153,45 @@ func (s *mediaService) Upload(
 
 }
 
-/* func (s *mediaService) Delete(ctx context.Context, objectKey string) error {
-
-	// First, check if the media exists in the database and obtain its metadata, specifically the objectKey.
-	
-
-	// Delete the media file from storage
-	if err := s.storage.Delete(ctx, id); err != nil {
-		return err
+func (s *mediaService) ListMedia(
+	ctx context.Context,
+	listMediaRequest models.ListMediaRequest,
+) ([]models.ListMediaResponse, error) {
+	if err := validateListMediaRequest(listMediaRequest); err != nil {
+		return nil, err
 	}
-
-	// Delete the media record from the database
-	if err := s.repository.Delete(ctx, id); err != nil {
-		return err
+	processedMedia, err := s.repository.ListMedia(
+		ctx,
+		 listMediaRequest.MediaContext,
+		  listMediaRequest.Season,
+		)
+	if err != nil {
+		return nil, err
 	}
-
-	return nil
-} */
+	response := make(
+		[]models.ListMediaResponse, 0, len(processedMedia))
+	for _, media := range processedMedia {
+		response = append(response, models.ListMediaResponse{
+			OriginalFilename: media.OriginalFilename,
+			FileDescription:  media.FileDescription,
+			Width:            media.Width,
+			Height:           media.Height,
+			BlurMediaURL:     s.publicBaseURL + "/" + media.BlurKey,
+			SmallMediaURL:    s.publicBaseURL + "/" + media.SmallKey,
+			MediumMediaURL:   s.publicBaseURL + "/" + media.MediumKey,
+			LargeMediaURL:    s.publicBaseURL + "/" + media.LargeKey,
+			MediaContext:     media.MediaContext,
+			Season:           media.Season,
+			Category:         media.Category,
+			DisplayOrder:     media.DisplayOrder,
+		})
+	}
+	return response, nil
+}
 
 func performRequestValidations(request models.UploadMediaRequest) (string, int, int, error) {
-	const maxFileSize int64 = 15 * 1024 * 1024 // 15 MB
-
-	if request.FileSize > maxFileSize {
-		return "", 0, 0, ErrFileTooLarge
+	if err := validateFileSize(request.FileSize, maxImageFileSize); err != nil {
+		return "", 0, 0, err
 	}
 
 	mimeType, err := utils.GetMimeType(request.File)
@@ -172,8 +199,8 @@ func performRequestValidations(request models.UploadMediaRequest) (string, int, 
 		return "", 0, 0, err
 	}
 
-	if !isAllowedMimeType(mimeType) {
-		return "", 0, 0, ErrUnsupportedMediaType
+	if err := validateMimeType(mimeType, allowedImageMimeTypes); err != nil {
+		return "", 0, 0, err
 	}
 
 	width, height, err := utils.GetImageDimensions(request.File)
@@ -185,15 +212,6 @@ func performRequestValidations(request models.UploadMediaRequest) (string, int, 
 	}
 
 	return mimeType, width, height, nil
-}
-
-func isAllowedMimeType(mimeType string) bool {
-	switch mimeType {
-	case "image/jpeg", "image/png":
-		return true
-	default:
-		return false
-	}
 }
 
 func executeRollback(ctx context.Context, storage storage.MediaStorage, keys []string) {

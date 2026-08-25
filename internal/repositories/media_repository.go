@@ -76,3 +76,60 @@ func (r *MediaRepository) Delete(
 	)
 	return err
 }
+
+func (r *MediaRepository) ListMedia(
+	ctx context.Context,
+	mediaContext string,
+	season *string,
+) ([]models.ProcessedMedia, error) {
+	rows, err := r.db.Query(
+		ctx,
+		`
+		SELECT id, object_key, original_filename, file_description,
+			mime_type, width, height, filesize, blur_key,
+			small_key, medium_key, large_key, media_context,
+			season, category, display_order
+		FROM image_metadata
+		WHERE media_context = $1 AND ($2::text IS NULL OR season = $2)
+		ORDER BY display_order ASC NULLS LAST, id ASC
+		`,
+		mediaContext,
+		season,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var mediaList []models.ProcessedMedia
+	for rows.Next() {
+		var media models.ProcessedMedia
+		if err := rows.Scan(
+			&media.ID,
+			&media.ObjectKey,
+			&media.OriginalFilename,
+			&media.FileDescription,
+			&media.MimeType,
+			&media.Width,
+			&media.Height,
+			&media.FileSize,
+			&media.BlurKey,
+			&media.SmallKey,
+			&media.MediumKey,
+			&media.LargeKey,
+			&media.MediaContext,
+			&media.Season,
+			&media.Category,
+			&media.DisplayOrder,
+		); err != nil {
+			return nil, err
+		}
+		mediaList = append(mediaList, media)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return mediaList, nil
+}
