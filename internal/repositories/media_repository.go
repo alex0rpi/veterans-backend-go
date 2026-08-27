@@ -40,7 +40,7 @@ func (r *MediaRepository) Create(
 			media_context,
 			season,
 			category,
-			display_order
+			display_position
 		)
 		VALUES ($1, $2, $3, $4, $5,
 			$6, $7, $8, $9, $10,
@@ -88,10 +88,10 @@ func (r *MediaRepository) ListMedia(
 		SELECT id, object_key, original_filename, file_description,
 			mime_type, width, height, filesize, blur_key,
 			small_key, medium_key, large_key, media_context,
-			season, category, display_order
+			season, category, display_position
 		FROM image_metadata
 		WHERE media_context = $1 AND ($2::text IS NULL OR season = $2)
-		ORDER BY display_order ASC NULLS LAST, id ASC
+		ORDER BY display_position ASC NULLS LAST, id ASC
 		`,
 		mediaContext,
 		season,
@@ -132,4 +132,41 @@ func (r *MediaRepository) ListMedia(
 	}
 
 	return mediaList, nil
+}
+
+func (r *MediaRepository) GetUsedDisplayPositions(ctx context.Context, mediaContext string, season, category *string) ([]int, error) {
+	rows, err := r.db.Query(
+		ctx,
+		`
+		SELECT display_position
+		FROM image_metadata
+		WHERE media_context = $1
+		AND COALESCE(season, '') = COALESCE($2, '')
+		AND COALESCE(category, '') = COALESCE($3, '')
+		ORDER BY display_position ASC
+		`,
+		mediaContext,
+		season,
+		category,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var usedDisplayPositions []int
+	for rows.Next() {
+		var displayOrder int
+		if err := rows.Scan(&displayOrder); err != nil {
+			return nil, err
+		}
+		usedDisplayPositions = append(usedDisplayPositions, displayOrder)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return usedDisplayPositions, nil
+
 }

@@ -10,24 +10,13 @@ For the time I just set up ONE SINGLE TABLE for storing all images metadata.
 
 That is the first purpose of this backend, to allow retrieval of all images of the front end of the site.
 
-This table would have the following columns:
-
-IMAGE_METADATA
-
-- id
-- object_key
-- original_filename
-- mime_type
-- created_at
-- height
-- width
-- filesize
-- blur_key
-- small_key
-- medium_key
-- large_key
-
 I Might add in the future some additional tables for managing users or perhaps a relationship table between:
 
 - web sections
 - image used by those web sections
+
+---
+
+- Get available display_indexes
+- Update all display indexes for a given context and season
+- images display position (int) MUST BE UNIQUE for their given context and season (if the context is season)

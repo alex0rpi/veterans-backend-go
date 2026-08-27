@@ -34,7 +34,13 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	displayOrder, err := getOptionalIntFormValue(r, "display_order")
+	mediaContext, err := getRequiredFormValue(r, "media_context")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	displayOrder, err := getIntFormValue(r, "display_order")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -51,7 +57,7 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		OriginalFilename: header.Filename,
 		FileSize:         header.Size,
 		FileDescription:  fileDescription,
-		MediaContext:     getOptionalFormValue(r, "media_context"),
+		MediaContext:     mediaContext,
 		Season:           getOptionalFormValue(r, "season"),
 		Category:         getOptionalFormValue(r, "category"),
 		DisplayOrder:     displayOrder,
@@ -76,7 +82,7 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, services.ErrInvalidMediaContext) ||
-			errors.Is(err, services.ErrInvalidMediaCategory) ||
+			errors.Is(err, services.ErrInvalidCategory) ||
 			errors.Is(err, services.ErrInvalidSeason) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -94,12 +100,6 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 
-	log.Printf("URL=%s - context=%q - season=%q",
-    r.URL.String(),
-    r.URL.Query().Get("media_context"),
-    r.URL.Query().Get("season"),
-)
-
 	var season *string
 	seasonParam := r.URL.Query().Get("season")
 	if seasonParam != "" {
@@ -107,16 +107,16 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	listMediaRequest := models.ListMediaRequest{
-		MediaContext:     r.URL.Query().Get("media_context"),
-		Season:           season,
+		MediaContext: r.URL.Query().Get("media_context"),
+		Season:       season,
 	}
 
 	log.Printf(
-    "REQUEST context=%q seasonParam=%q seasonPointerNil=%t",
-    listMediaRequest.MediaContext,
-    seasonParam,
-    listMediaRequest.Season == nil,
-)
+		"REQUEST context=%q seasonParam=%q seasonPointerNil=%t",
+		listMediaRequest.MediaContext,
+		seasonParam,
+		listMediaRequest.Season == nil,
+	)
 
 	mediaList, err := h.service.ListMedia(
 		r.Context(),
@@ -126,8 +126,8 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidMediaContext) ||
 			errors.Is(err, services.ErrInvalidSeason) ||
-			errors.Is(err, services.ErrSeasonRequiredForSeasonSlider) ||
-			errors.Is(err, services.ErrSeasonNotAllowedForRequestedContext) {
+			errors.Is(err, services.ErrSeasonRequiredForGivenContext) ||
+			errors.Is(err, services.ErrSeasonNotAllowedForGivenContext) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -140,6 +140,46 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error encoding response: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *MediaHandler) GetAvailableDisplayPositions(w http.ResponseWriter, r *http.Request) {
+	var season, category *string
+
+	if s := r.URL.Query().Get("season"); s != "" {
+		season = &s
+	}
+	if cat := r.URL.Query().Get("category"); cat != "" {
+		category = &cat
+	}
+
+	request := models.GetAvailDisplayPositionsRequest{
+		MediaContext: r.URL.Query().Get("media_context"),
+		Season:       season,
+		Category:     category,
+	}
+
+	result, err := h.service.GetAvailableDisplayPositions(r.Context(), request)
+	if err != nil {
+		if errors.Is(err, services.ErrInvalidMediaContext) ||
+			errors.Is(err, services.ErrInvalidSeason) ||
+			errors.Is(err, services.ErrSeasonRequiredForGivenContext) ||
+			errors.Is(err, services.ErrSeasonNotAllowedForGivenContext) ||
+			errors.Is(err, services.ErrCategoryRequiredForGivenContext) ||
+			errors.Is(err, services.ErrCategoryNotAllowedForGivenContext) ||
+			errors.Is(err, services.ErrInvalidCategory) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "Error encoding response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 }
 
 /* func (h *MediaHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -187,16 +227,25 @@ func getOptionalFormValue(r *http.Request, key string) *string {
 	return &value
 }
 
-func getOptionalIntFormValue(r *http.Request, key string) (*int, error) {
+func getRequiredFormValue(r *http.Request, key string) (string, error) {
 	value := r.FormValue(key)
 	if value == "" {
-		return nil, nil
+		return "", fmt.Errorf("%s is required", key)
+	}
+
+	return value, nil
+}
+
+func getIntFormValue(r *http.Request, key string) (int, error) {
+	value := r.FormValue(key)
+	if value == "" {
+		return 0, fmt.Errorf("%s is required", key)
 	}
 
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
-		return nil, fmt.Errorf("%s must be an integer", key)
+		return 0, fmt.Errorf("%s must be an integer", key)
 	}
 
-	return &parsed, nil
+	return parsed, nil
 }

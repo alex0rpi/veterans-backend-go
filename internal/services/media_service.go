@@ -25,12 +25,16 @@ type MediaService interface {
 		ctx context.Context,
 		listMediaRequest models.ListMediaRequest,
 	) ([]models.ListMediaResponse, error)
+	GetAvailableDisplayPositions(
+		ctx context.Context,
+		request models.GetAvailDisplayPositionsRequest,
+	) (*models.GetAvailDisplayPositionsResponse, error)
 }
 
 // This struct is the blueprint containing the dependencies required for the media service to function.
 type mediaService struct {
-	repository *repositories.MediaRepository
-	storage    storage.MediaStorage
+	repository    *repositories.MediaRepository
+	storage       storage.MediaStorage
 	publicBaseURL string
 }
 
@@ -41,8 +45,8 @@ func NewMediaService(
 	publicBaseURL string,
 ) MediaService {
 	return &mediaService{
-		repository: repository,
-		storage:    storage,
+		repository:    repository,
+		storage:       storage,
 		publicBaseURL: publicBaseURL,
 	}
 }
@@ -73,7 +77,7 @@ func (s *mediaService) Upload(
 		}
 	}()
 
-	mimeType, width, height, err := performRequestValidations(request)
+	mimeType, width, height, err := validateImageProperties(request)
 	if err != nil {
 		return nil, err
 	}
@@ -138,10 +142,10 @@ func (s *mediaService) Upload(
 		SmallKey:         variantKeys[string(constants.VariantSmall)],
 		MediumKey:        variantKeys[string(constants.VariantMedium)],
 		LargeKey:         variantKeys[string(constants.VariantLarge)],
-		MediaContext:     request.MediaContext,
+		MediaContext:     &request.MediaContext,
 		Season:           request.Season,
 		Category:         request.Category,
-		DisplayOrder:     request.DisplayOrder,
+		DisplayOrder:     &request.DisplayOrder,
 	}
 
 	// Save the processed media information in the database
@@ -162,9 +166,9 @@ func (s *mediaService) ListMedia(
 	}
 	processedMedia, err := s.repository.ListMedia(
 		ctx,
-		 listMediaRequest.MediaContext,
-		  listMediaRequest.Season,
-		)
+		listMediaRequest.MediaContext,
+		listMediaRequest.Season,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -189,29 +193,126 @@ func (s *mediaService) ListMedia(
 	return response, nil
 }
 
-func performRequestValidations(request models.UploadMediaRequest) (string, int, int, error) {
-	if err := validateFileSize(request.FileSize, maxImageFileSize); err != nil {
-		return "", 0, 0, err
-	}
-
-	mimeType, err := utils.GetMimeType(request.File)
+func (s *mediaService) GetAvailableDisplayPositions(
+	ctx context.Context,
+	request models.GetAvailDisplayPositionsRequest,
+) (*models.GetAvailDisplayPositionsResponse, error) {
+	err := validateAvailDisplayPositionsRequest(request)
 	if err != nil {
-		return "", 0, 0, err
+		return nil, err
 	}
 
-	if err := validateMimeType(mimeType, allowedImageMimeTypes); err != nil {
-		return "", 0, 0, err
-	}
-
-	width, height, err := utils.GetImageDimensions(request.File)
+	used, err := s.repository.GetUsedDisplayPositions(
+		ctx,
+		request.MediaContext,
+		request.Season,
+		request.Category,
+	)
 	if err != nil {
-		return "", 0, 0, err
-	}
-	if !utils.ImageDimensionsAreValid(width, height) {
-		return "", 0, 0, ErrImageDimensionsOutOfRange
+		return nil, err
 	}
 
-	return mimeType, width, height, nil
+	return &models.GetAvailDisplayPositionsResponse{
+		NextAvailableDisplayPosition: nextDisplayOrderAfterMax(used),
+		UnusedDisplayPositions:       inferUnusedDisplayPositions(used),
+	}, nil
+}
+
+func validateAvailDisplayPositionsRequest(request models.GetAvailDisplayPositionsRequest) error {
+
+	mediaContext := request.MediaContext
+	if !isValidMediaContext(mediaContext) {
+		return ErrInvalidMediaContext
+	}
+
+	switch mediaContext {
+	case string(constants.MediaContextSeasonSlider):
+		err := validateRequestForSeasonSliderContext(request)
+		if err != nil {
+			return err
+		}
+
+	case string(constants.MediaContextHomeSlider):
+		err := validateRequestForHomeSliderContext(request)
+		if err != nil {
+			return err
+		}
+	case string(constants.MediaContextSingle):
+		err := validateRequestForSingleContext(request)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateRequestForHomeSliderContext(request models.GetAvailDisplayPositionsRequest) error {
+	if request.Season != nil {
+		return ErrSeasonNotAllowedForGivenContext
+	}
+	if request.Category != nil {
+		return ErrCategoryNotAllowedForGivenContext
+	}
+	return nil
+}
+
+func validateRequestForSingleContext(request models.GetAvailDisplayPositionsRequest) error {
+	if request.Season != nil {
+		return ErrSeasonNotAllowedForGivenContext
+	}
+	if request.Category != nil {
+		return ErrCategoryNotAllowedForGivenContext
+	}
+	return nil
+}
+
+func validateRequestForSeasonSliderContext(request models.GetAvailDisplayPositionsRequest) error {
+	if request.Season == nil {
+		return ErrSeasonRequiredForGivenContext
+	}
+	if !isValidSeason(*request.Season) {
+		return ErrInvalidSeason
+	}
+	category := request.Category
+	if category == nil {
+		return ErrCategoryRequiredForGivenContext
+	}
+	if !isValidCategory(*category) {
+		return ErrInvalidCategory
+	}
+	if *category != string(constants.BasesCategory) && *category != string(constants.ProCategory) && *category != string(constants.VetsCategory) {
+		return ErrCategoryNotAllowedForGivenContext
+	}
+	return nil
+}
+
+func inferUnusedDisplayPositions(used []int) []int {
+	if len(used) == 0 {
+		return []int{}
+	}
+
+	maxUsed := used[len(used)-1]
+	unused := make([]int, 0)
+	usedIdx := 0
+	for i := 1; i < maxUsed; i++ {
+		if usedIdx < len(used) && used[usedIdx] == i {
+			usedIdx++
+			continue
+		}
+		unused = append(unused, i)
+	}
+	return unused
+}
+
+func nextDisplayOrderAfterMax(used []int) int {
+	maxUsed := 0
+	for _, v := range used {
+		if v > maxUsed {
+			maxUsed = v
+		}
+	}
+	return maxUsed + 1
 }
 
 func executeRollback(ctx context.Context, storage storage.MediaStorage, keys []string) {

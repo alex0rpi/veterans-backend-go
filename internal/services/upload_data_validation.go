@@ -10,12 +10,12 @@ import (
 )
 
 func validateUploadMetadata(request models.UploadMediaRequest) error {
-	if request.MediaContext != nil && !isValidMediaContext(*request.MediaContext) {
+	if !isValidMediaContext(request.MediaContext) {
 		return ErrInvalidMediaContext
 	}
 
-	if request.Category != nil && !isValidMediaCategory(*request.Category) {
-		return ErrInvalidMediaCategory
+	if request.Category != nil && !isValidCategory(*request.Category) {
+		return ErrInvalidCategory
 	}
 
 	if request.Season != nil && !isValidSeason(*request.Season) {
@@ -36,11 +36,11 @@ func validateListMediaRequest(request models.ListMediaRequest) error {
 	}
 
 	if request.MediaContext == string(constants.MediaContextSeasonSlider) && request.Season == nil {
-		return ErrSeasonRequiredForSeasonSlider
+		return ErrSeasonRequiredForGivenContext
 	}
 
 	if request.MediaContext != string(constants.MediaContextSeasonSlider) && request.Season != nil {
-		return ErrSeasonNotAllowedForRequestedContext
+		return ErrSeasonNotAllowedForGivenContext
 	}
 
 	return nil
@@ -48,9 +48,9 @@ func validateListMediaRequest(request models.ListMediaRequest) error {
 
 func isValidMediaContext(value string) bool {
 	switch value {
-	case 
-		string(constants.MediaContextSeasonSlider), 
-		string(constants.MediaContextHomeSlider), 
+	case
+		string(constants.MediaContextSeasonSlider),
+		string(constants.MediaContextHomeSlider),
 		string(constants.MediaContextSingle):
 		return true
 	default:
@@ -58,9 +58,14 @@ func isValidMediaContext(value string) bool {
 	}
 }
 
-func isValidMediaCategory(value string) bool {
+func isValidCategory(value string) bool {
 	switch value {
-	case string(constants.ProCategory), string(constants.BasesCategory), string(constants.VetsCategory), string(constants.BoardCategory), string(constants.OtherCategory):
+	case
+		string(constants.ProCategory),
+		string(constants.BasesCategory),
+		string(constants.VetsCategory),
+		string(constants.BoardCategory),
+		string(constants.HistoricBoardCategory):
 		return true
 	default:
 		return false

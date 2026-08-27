@@ -7,39 +7,60 @@ var (
 		"unsupported media type",
 	)
 
+	//* File size / dimensions errors
+
 	ErrFileTooLarge = errors.New(
 		"file size exceeds the maximum allowed limit",
 	)
-
 	ErrImageDimensionsOutOfRange = errors.New(
 		"image dimensions are out of the allowed range",
 	)
-
 	ErrInvalidMediaContext = errors.New(
 		"invalid media context",
 	)
 
-	ErrInvalidMediaCategory = errors.New(
-		"invalid media category",
+	//* Category errors ------------------
+
+	ErrInvalidCategory = errors.New(
+		"invalid category",
 	)
+	ErrCategoryNotAllowedForGivenContext = errors.New(
+		"category is not allowed for the given media context",
+	)
+	ErrCategoryRequiredForGivenContext = errors.New(
+		"category is required for the given media context",
+	)
+
+	//* Season errors ------------------
 
 	ErrInvalidSeason = errors.New(
 		"invalid season",
 	)
-
-	ErrMediaNotFound = errors.New(
-		"media not found",
+	ErrSeasonRequiredForGivenContext = errors.New(
+		"season is required for the given media context",
+	)
+	ErrSeasonNotAllowedForGivenContext = errors.New(
+		"season field is not allowed for the given media context",
 	)
 
+	//* Title & description errors
 	ErrDocumentTitleRequired = errors.New(
 		"document title is required",
 	)
 
-	ErrSeasonRequiredForSeasonSlider = errors.New(
-		"season is required when media_context is 'season_slider'",
+	//* Display position errors ------------------
+
+	ErrDisplayPositionRequired = errors.New(
+		"display position is required",
 	)
 
-	ErrSeasonNotAllowedForRequestedContext = errors.New(
-		"season field is not allowed for the requested media context",
+	ErrDisplayPositionNotValid = errors.New(
+		"display position is not valid",
+	)
+
+	//* Not found errors ------------------
+
+	ErrMediaNotFound = errors.New(
+		"media not found",
 	)
 )

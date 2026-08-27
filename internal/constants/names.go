@@ -3,9 +3,9 @@ package constants
 type MediaContext string
 
 const (
-	MediaContextSeasonSlider 	MediaContext = "season"
-	MediaContextHomeSlider   	MediaContext = "home"
-	MediaContextSingle   		MediaContext = "single"
+	MediaContextSeasonSlider MediaContext = "season"
+	MediaContextHomeSlider   MediaContext = "home"
+	MediaContextSingle       MediaContext = "single"
 )
 
 type MediaVariant string
@@ -21,10 +21,9 @@ const (
 type MediaCategory string
 
 const (
-	ProCategory   MediaCategory = "pro"
-	BasesCategory MediaCategory = "bases"
-	VetsCategory  MediaCategory = "vets"
-	BoardCategory MediaCategory = "board"
+	ProCategory           MediaCategory = "pro"
+	BasesCategory         MediaCategory = "bases"
+	VetsCategory          MediaCategory = "vets"
+	BoardCategory         MediaCategory = "board"
 	HistoricBoardCategory MediaCategory = "historic_board"
-	OtherCategory MediaCategory = "other"
 )

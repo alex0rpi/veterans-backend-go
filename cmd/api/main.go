@@ -65,10 +65,14 @@ func main() {
 		}
 	})
 
-	// media - images - videos - audio
+	/* endpoint to post a new media item (image) */
 	r.Post("/media", mediaHandler.Upload)
+
 	/* endpoint to get a list of media items filtered by context and optionally by season query params */
 	r.Get("/media", mediaHandler.ListMedia)
+
+	/* endpoint to get all available display positions for a given context */
+	r.Get("/media/available-display-positions", mediaHandler.GetAvailableDisplayPositions)
 
 	/* endpoint to delete a single media element (along with its variants) */
 	// r.Delete("/media/{id}", mediaHandler.Delete)
@@ -77,8 +81,11 @@ func main() {
 	// r.Put("/media/{id}", mediaHandler.Update)
 
 	// documents
+	/* endpoint to post a new document */
 	r.Post("/documents", documentHandler.Upload)
-	r.Get("/documents", documentHandler.List)
+
+	/* endpoint to get a list of all documents metadata */
+	// r.Get("/documents", documentHandler.List)
 
 	log.Printf("Server is listening on port %s ...", os.Getenv("PORT"))
 	if err := http.ListenAndServe(":"+os.Getenv("PORT"), r); err != nil {
