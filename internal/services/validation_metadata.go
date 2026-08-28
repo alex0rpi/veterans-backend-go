@@ -6,51 +6,13 @@ import (
 	"strconv"
 	"time"
 	"veterans-go-chi-server/internal/constants"
-	"veterans-go-chi-server/internal/models"
 )
-
-func validateUploadMetadata(request models.UploadMediaRequest) error {
-	if !isValidMediaContext(request.MediaContext) {
-		return ErrInvalidMediaContext
-	}
-
-	if request.Category != nil && !isValidCategory(*request.Category) {
-		return ErrInvalidCategory
-	}
-
-	if request.Season != nil && !isValidSeason(*request.Season) {
-		return ErrInvalidSeason
-	}
-
-	return nil
-}
-
-func validateListMediaRequest(request models.ListMediaRequest) error {
-
-	if !isValidMediaContext(request.MediaContext) {
-		return ErrInvalidMediaContext
-	}
-
-	if request.Season != nil && !isValidSeason(*request.Season) {
-		return ErrInvalidSeason
-	}
-
-	if request.MediaContext == string(constants.MediaContextSeasonSlider) && request.Season == nil {
-		return ErrSeasonRequiredForGivenContext
-	}
-
-	if request.MediaContext != string(constants.MediaContextSeasonSlider) && request.Season != nil {
-		return ErrSeasonNotAllowedForGivenContext
-	}
-
-	return nil
-}
 
 func isValidMediaContext(value string) bool {
 	switch value {
 	case
-		string(constants.MediaContextSeasonSlider),
-		string(constants.MediaContextHomeSlider),
+		string(constants.MediaContextSeason),
+		string(constants.MediaContextHome),
 		string(constants.MediaContextSingle):
 		return true
 	default:

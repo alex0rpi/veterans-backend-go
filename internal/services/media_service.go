@@ -68,6 +68,11 @@ func (s *mediaService) Upload(
 		return nil, err
 	}
 
+	err = s.validateDisplayPosition(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
 	savedKeys := make([]string, 0)
 
 	// rollback: any error return after this point cleans up whatever was already saved to storage
@@ -142,10 +147,10 @@ func (s *mediaService) Upload(
 		SmallKey:         variantKeys[string(constants.VariantSmall)],
 		MediumKey:        variantKeys[string(constants.VariantMedium)],
 		LargeKey:         variantKeys[string(constants.VariantLarge)],
-		MediaContext:     &request.MediaContext,
+		MediaContext:     request.MediaContext,
 		Season:           request.Season,
 		Category:         request.Category,
-		DisplayOrder:     &request.DisplayOrder,
+		DisplayPosition:  request.DisplayPosition,
 	}
 
 	// Save the processed media information in the database
@@ -155,6 +160,78 @@ func (s *mediaService) Upload(
 
 	return processed, nil
 
+}
+
+func validateUploadMetadata(request models.UploadMediaRequest) error {
+	if !isValidMediaContext(request.MediaContext) {
+		return ErrInvalidMediaContext
+	}
+
+	switch request.MediaContext {
+	case string(constants.MediaContextSeason):
+		err := validateRequestForSeasonContext(request.Season, request.Category)
+		if err != nil {
+			return err
+		}
+
+	case string(constants.MediaContextHome):
+		err := validateRequestForHomeContext(request.Season, request.Category)
+		if err != nil {
+			return err
+		}
+	case string(constants.MediaContextSingle):
+		err := validateRequestForSingleContext(request.Season, request.Category)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateListMediaRequest(request models.ListMediaRequest) error {
+
+	if !isValidMediaContext(request.MediaContext) {
+		return ErrInvalidMediaContext
+	}
+
+	if request.Season != nil && !isValidSeason(*request.Season) {
+		return ErrInvalidSeason
+	}
+
+	if request.MediaContext == string(constants.MediaContextSeason) && request.Season == nil {
+		return ErrSeasonRequiredForGivenContext
+	}
+
+	if request.MediaContext != string(constants.MediaContextSeason) && request.Season != nil {
+		return ErrSeasonNotAllowedForGivenContext
+	}
+
+	return nil
+}
+
+func (s *mediaService) validateDisplayPosition(ctx context.Context, request models.UploadMediaRequest) error {
+	usedPositions, err := s.repository.GetUsedDisplayPositions(
+		ctx, request.MediaContext, request.Season, request.Category,
+	)
+	if err != nil {
+		return err
+	}
+
+	availablePositions := inferUnusedDisplayPositions(usedPositions)
+	availablePositions = append(availablePositions, nextDisplayPositionAfterMax(usedPositions))
+
+	allowed := false
+	for _, pos := range availablePositions {
+		if pos == request.DisplayPosition {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return ErrDisplayPositionNotAllowedOrUsed
+	}
+	return nil
 }
 
 func (s *mediaService) ListMedia(
@@ -187,7 +264,7 @@ func (s *mediaService) ListMedia(
 			MediaContext:     media.MediaContext,
 			Season:           media.Season,
 			Category:         media.Category,
-			DisplayOrder:     media.DisplayOrder,
+			DisplayPosition:  media.DisplayPosition,
 		})
 	}
 	return response, nil
@@ -213,7 +290,7 @@ func (s *mediaService) GetAvailableDisplayPositions(
 	}
 
 	return &models.GetAvailDisplayPositionsResponse{
-		NextAvailableDisplayPosition: nextDisplayOrderAfterMax(used),
+		NextAvailableDisplayPosition: nextDisplayPositionAfterMax(used),
 		UnusedDisplayPositions:       inferUnusedDisplayPositions(used),
 	}, nil
 }
@@ -226,19 +303,19 @@ func validateAvailDisplayPositionsRequest(request models.GetAvailDisplayPosition
 	}
 
 	switch mediaContext {
-	case string(constants.MediaContextSeasonSlider):
-		err := validateRequestForSeasonSliderContext(request)
+	case string(constants.MediaContextSeason):
+		err := validateRequestForSeasonContext(request.Season, request.Category)
 		if err != nil {
 			return err
 		}
 
-	case string(constants.MediaContextHomeSlider):
-		err := validateRequestForHomeSliderContext(request)
+	case string(constants.MediaContextHome):
+		err := validateRequestForHomeContext(request.Season, request.Category)
 		if err != nil {
 			return err
 		}
 	case string(constants.MediaContextSingle):
-		err := validateRequestForSingleContext(request)
+		err := validateRequestForSingleContext(request.Season, request.Category)
 		if err != nil {
 			return err
 		}
@@ -247,34 +324,33 @@ func validateAvailDisplayPositionsRequest(request models.GetAvailDisplayPosition
 	return nil
 }
 
-func validateRequestForHomeSliderContext(request models.GetAvailDisplayPositionsRequest) error {
-	if request.Season != nil {
+func validateRequestForHomeContext(season, category *string) error {
+	if season != nil {
 		return ErrSeasonNotAllowedForGivenContext
 	}
-	if request.Category != nil {
+	if category != nil {
 		return ErrCategoryNotAllowedForGivenContext
 	}
 	return nil
 }
 
-func validateRequestForSingleContext(request models.GetAvailDisplayPositionsRequest) error {
-	if request.Season != nil {
+func validateRequestForSingleContext(season, category *string) error {
+	if season != nil {
 		return ErrSeasonNotAllowedForGivenContext
 	}
-	if request.Category != nil {
+	if category != nil {
 		return ErrCategoryNotAllowedForGivenContext
 	}
 	return nil
 }
 
-func validateRequestForSeasonSliderContext(request models.GetAvailDisplayPositionsRequest) error {
-	if request.Season == nil {
+func validateRequestForSeasonContext(season, category *string) error {
+	if season == nil {
 		return ErrSeasonRequiredForGivenContext
 	}
-	if !isValidSeason(*request.Season) {
+	if !isValidSeason(*season) {
 		return ErrInvalidSeason
 	}
-	category := request.Category
 	if category == nil {
 		return ErrCategoryRequiredForGivenContext
 	}
@@ -305,7 +381,7 @@ func inferUnusedDisplayPositions(used []int) []int {
 	return unused
 }
 
-func nextDisplayOrderAfterMax(used []int) int {
+func nextDisplayPositionAfterMax(used []int) int {
 	maxUsed := 0
 	for _, v := range used {
 		if v > maxUsed {

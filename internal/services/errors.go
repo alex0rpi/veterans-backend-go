@@ -25,7 +25,7 @@ var (
 		"invalid category",
 	)
 	ErrCategoryNotAllowedForGivenContext = errors.New(
-		"category is not allowed for the given media context",
+		"category provided is not allowed for the given media context",
 	)
 	ErrCategoryRequiredForGivenContext = errors.New(
 		"category is required for the given media context",
@@ -56,6 +56,10 @@ var (
 
 	ErrDisplayPositionNotValid = errors.New(
 		"display position is not valid",
+	)
+
+	ErrDisplayPositionNotAllowedOrUsed = errors.New(
+		"display position is either not allowed or already used",
 	)
 
 	//* Not found errors ------------------

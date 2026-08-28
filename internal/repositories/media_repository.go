@@ -61,7 +61,7 @@ func (r *MediaRepository) Create(
 		image.MediaContext,
 		image.Season,
 		image.Category,
-		image.DisplayOrder,
+		image.DisplayPosition,
 	).Scan(&image.ID)
 }
 
@@ -120,7 +120,7 @@ func (r *MediaRepository) ListMedia(
 			&media.MediaContext,
 			&media.Season,
 			&media.Category,
-			&media.DisplayOrder,
+			&media.DisplayPosition,
 		); err != nil {
 			return nil, err
 		}

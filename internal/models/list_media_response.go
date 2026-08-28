@@ -11,8 +11,8 @@ type ListMediaResponse struct {
 	MediumMediaURL string `json:"medium_url"`
 	LargeMediaURL  string `json:"large_url"`
 
-	MediaContext *string `json:"media_context,omitempty"`
-	Season       *string `json:"season,omitempty"`
-	Category     *string `json:"category,omitempty"`
-	DisplayOrder *int    `json:"display_order,omitempty"`
+	MediaContext    string  `json:"media_context"`
+	Season          *string `json:"season,omitempty"`
+	Category        *string `json:"category,omitempty"`
+	DisplayPosition int     `json:"display_position"`
 }

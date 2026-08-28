@@ -16,8 +16,8 @@ type ProcessedMedia struct {
 	MediumKey string `json:"medium_key"`
 	LargeKey  string `json:"large_key"`
 
-	MediaContext *string `json:"media_context,omitempty"`
-	Season       *string `json:"season,omitempty"`
-	Category     *string `json:"category,omitempty"`
-	DisplayOrder *int    `json:"display_order,omitempty"`
+	MediaContext    string  `json:"media_context"`
+	Season          *string `json:"season,omitempty"`
+	Category        *string `json:"category,omitempty"`
+	DisplayPosition int     `json:"display_position"`
 }

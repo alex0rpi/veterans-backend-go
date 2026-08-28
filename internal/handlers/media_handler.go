@@ -40,7 +40,7 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	displayOrder, err := getIntFormValue(r, "display_order")
+	displayPosition, err := getIntFormValue(r, "display_position")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -60,7 +60,7 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		MediaContext:     mediaContext,
 		Season:           getOptionalFormValue(r, "season"),
 		Category:         getOptionalFormValue(r, "category"),
-		DisplayOrder:     displayOrder,
+		DisplayPosition:  displayPosition,
 	}
 
 	processedMedia, err := h.service.Upload(
@@ -83,7 +83,8 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		}
 		if errors.Is(err, services.ErrInvalidMediaContext) ||
 			errors.Is(err, services.ErrInvalidCategory) ||
-			errors.Is(err, services.ErrInvalidSeason) {
+			errors.Is(err, services.ErrInvalidSeason) ||
+			errors.Is(err, services.ErrDisplayPositionNotAllowedOrUsed) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -145,6 +146,11 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 func (h *MediaHandler) GetAvailableDisplayPositions(w http.ResponseWriter, r *http.Request) {
 	var season, category *string
 
+	mediaContext := r.URL.Query().Get("media_context")
+	if mediaContext == "" {
+		http.Error(w, "media_context query parameter is required", http.StatusBadRequest)
+		return
+	}
 	if s := r.URL.Query().Get("season"); s != "" {
 		season = &s
 	}
@@ -153,7 +159,7 @@ func (h *MediaHandler) GetAvailableDisplayPositions(w http.ResponseWriter, r *ht
 	}
 
 	request := models.GetAvailDisplayPositionsRequest{
-		MediaContext: r.URL.Query().Get("media_context"),
+		MediaContext: mediaContext,
 		Season:       season,
 		Category:     category,
 	}
@@ -210,7 +216,6 @@ func getOptionalDescriptionValue(r *http.Request, key string) (*string, error) {
 	if value == "" {
 		return nil, nil
 	}
-
 	if len(value) > 100 {
 		return nil, fmt.Errorf("%s must be at most 100 characters", key)
 	}

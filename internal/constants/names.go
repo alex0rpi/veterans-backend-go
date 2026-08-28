@@ -3,9 +3,9 @@ package constants
 type MediaContext string
 
 const (
-	MediaContextSeasonSlider MediaContext = "season"
-	MediaContextHomeSlider   MediaContext = "home"
-	MediaContextSingle       MediaContext = "single"
+	MediaContextSeason MediaContext = "season"
+	MediaContextHome   MediaContext = "home"
+	MediaContextSingle MediaContext = "single"
 )
 
 type MediaVariant string
