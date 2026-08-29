@@ -40,11 +40,14 @@ func (r *MediaRepository) Create(
 			media_context,
 			season,
 			category,
-			display_position
+			display_position,
+			visible
+			
 		)
 		VALUES ($1, $2, $3, $4, $5,
 			$6, $7, $8, $9, $10,
-			$11, $12, $13, $14, $15)
+			$11, $12, $13, $14, $15,
+			$16)
 		RETURNING id
 		`,
 		image.ObjectKey,
@@ -62,6 +65,7 @@ func (r *MediaRepository) Create(
 		image.Season,
 		image.Category,
 		image.DisplayPosition,
+		image.Visible,
 	).Scan(&image.ID)
 }
 
@@ -88,7 +92,7 @@ func (r *MediaRepository) ListMedia(
 		SELECT id, object_key, original_filename, file_description,
 			mime_type, width, height, filesize, blur_key,
 			small_key, medium_key, large_key, media_context,
-			season, category, display_position
+			season, category, display_position, visible
 		FROM image_metadata
 		WHERE media_context = $1 AND ($2::text IS NULL OR season = $2)
 		ORDER BY display_position ASC NULLS LAST, id ASC
@@ -121,6 +125,7 @@ func (r *MediaRepository) ListMedia(
 			&media.Season,
 			&media.Category,
 			&media.DisplayPosition,
+			&media.Visible,
 		); err != nil {
 			return nil, err
 		}

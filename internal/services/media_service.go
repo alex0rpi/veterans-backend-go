@@ -151,6 +151,7 @@ func (s *mediaService) Upload(
 		Season:           request.Season,
 		Category:         request.Category,
 		DisplayPosition:  request.DisplayPosition,
+		Visible:          request.Visible,
 	}
 
 	// Save the processed media information in the database

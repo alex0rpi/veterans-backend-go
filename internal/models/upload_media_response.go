@@ -20,4 +20,5 @@ type ProcessedMedia struct {
 	Season          *string `json:"season,omitempty"`
 	Category        *string `json:"category,omitempty"`
 	DisplayPosition int     `json:"display_position"`
+	Visible         *bool   `json:"visible"`
 }

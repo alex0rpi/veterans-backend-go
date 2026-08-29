@@ -61,6 +61,7 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		Season:           getOptionalFormValue(r, "season"),
 		Category:         getOptionalFormValue(r, "category"),
 		DisplayPosition:  displayPosition,
+		Visible:          getOptionalBoolFormValue(r, "visible"),
 	}
 
 	processedMedia, err := h.service.Upload(
@@ -188,7 +189,22 @@ func (h *MediaHandler) GetAvailableDisplayPositions(w http.ResponseWriter, r *ht
 
 }
 
-/* func (h *MediaHandler) Delete(w http.ResponseWriter, r *http.Request) {
+func getOptionalBoolFormValue(r *http.Request, key string) *bool {
+	value := r.FormValue(key)
+	defaultValue := true
+	if value == "" {
+		return &defaultValue
+	}
+
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return &defaultValue
+	}
+
+	return &parsed
+}
+
+/* func (h *MediaHandler) DeleteImage(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		http.Error(w, "Missing media ID", http.StatusBadRequest)
