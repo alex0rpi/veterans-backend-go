@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"veterans-go-chi-server/internal/models"
 	"veterans-go-chi-server/internal/services"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type MediaHandler struct {
@@ -204,16 +206,21 @@ func getOptionalBoolFormValue(r *http.Request, key string) *bool {
 	return &parsed
 }
 
-/* func (h *MediaHandler) DeleteImage(w http.ResponseWriter, r *http.Request) {
+func (h *MediaHandler) DeleteImage(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		http.Error(w, "Missing media ID", http.StatusBadRequest)
 		return
 	}
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		http.Error(w, "Invalid media ID", http.StatusBadRequest)
+		return
+	}
 
-	err := h.service.Delete(
+	err = h.service.DeleteImage(
 		r.Context(),
-		id,
+		idInt,
 	)
 	if err != nil {
 		if errors.Is(err, services.ErrMediaNotFound) {
@@ -225,7 +232,7 @@ func getOptionalBoolFormValue(r *http.Request, key string) *bool {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-} */
+}
 
 func getOptionalDescriptionValue(r *http.Request, key string) (*string, error) {
 	value := r.FormValue(key)

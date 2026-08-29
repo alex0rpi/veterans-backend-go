@@ -139,6 +139,27 @@ func (r *MediaRepository) ListMedia(
 	return mediaList, nil
 }
 
+func (r *MediaRepository) GetImageByID(ctx context.Context, id int) (*models.ProcessedMedia, error) {
+	row := r.db.QueryRow(
+		ctx,
+		`
+		SELECT id, object_key
+		FROM image_metadata
+		WHERE id = $1
+		`,
+		id,
+	)
+
+	var media models.ProcessedMedia
+	if err := row.Scan(
+		&media.ID,
+		&media.ObjectKey,
+	); err != nil {
+		return nil, err
+	}
+	return &media, nil
+}
+
 func (r *MediaRepository) GetUsedDisplayPositions(ctx context.Context, mediaContext string, season, category *string) ([]int, error) {
 	rows, err := r.db.Query(
 		ctx,
@@ -174,4 +195,16 @@ func (r *MediaRepository) GetUsedDisplayPositions(ctx context.Context, mediaCont
 
 	return usedDisplayPositions, nil
 
+}
+
+func (r *MediaRepository) DeleteImage(
+	ctx context.Context,
+	id int,
+) error {
+	_, err := r.db.Exec(
+		ctx,
+		"DELETE FROM image_metadata WHERE id = $1",
+		id,
+	)
+	return err
 }
