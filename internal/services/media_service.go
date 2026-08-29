@@ -29,6 +29,10 @@ type MediaService interface {
 		ctx context.Context,
 		request models.GetAvailDisplayPositionsRequest,
 	) (*models.GetAvailDisplayPositionsResponse, error)
+	DeleteImage(
+		ctx context.Context,
+		id int,
+	) error
 }
 
 // This struct is the blueprint containing the dependencies required for the media service to function.
@@ -163,78 +167,6 @@ func (s *mediaService) Upload(
 
 }
 
-func validateUploadMetadata(request models.UploadMediaRequest) error {
-	if !isValidMediaContext(request.MediaContext) {
-		return ErrInvalidMediaContext
-	}
-
-	switch request.MediaContext {
-	case string(constants.MediaContextSeason):
-		err := validateRequestForSeasonContext(request.Season, request.Category)
-		if err != nil {
-			return err
-		}
-
-	case string(constants.MediaContextHome):
-		err := validateRequestForHomeContext(request.Season, request.Category)
-		if err != nil {
-			return err
-		}
-	case string(constants.MediaContextSingle):
-		err := validateRequestForSingleContext(request.Season, request.Category)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func validateListMediaRequest(request models.ListMediaRequest) error {
-
-	if !isValidMediaContext(request.MediaContext) {
-		return ErrInvalidMediaContext
-	}
-
-	if request.Season != nil && !isValidSeason(*request.Season) {
-		return ErrInvalidSeason
-	}
-
-	if request.MediaContext == string(constants.MediaContextSeason) && request.Season == nil {
-		return ErrSeasonRequiredForGivenContext
-	}
-
-	if request.MediaContext != string(constants.MediaContextSeason) && request.Season != nil {
-		return ErrSeasonNotAllowedForGivenContext
-	}
-
-	return nil
-}
-
-func (s *mediaService) validateDisplayPosition(ctx context.Context, request models.UploadMediaRequest) error {
-	usedPositions, err := s.repository.GetUsedDisplayPositions(
-		ctx, request.MediaContext, request.Season, request.Category,
-	)
-	if err != nil {
-		return err
-	}
-
-	availablePositions := inferUnusedDisplayPositions(usedPositions)
-	availablePositions = append(availablePositions, nextDisplayPositionAfterMax(usedPositions))
-
-	allowed := false
-	for _, pos := range availablePositions {
-		if pos == request.DisplayPosition {
-			allowed = true
-			break
-		}
-	}
-	if !allowed {
-		return ErrDisplayPositionNotAllowedOrUsed
-	}
-	return nil
-}
-
 func (s *mediaService) ListMedia(
 	ctx context.Context,
 	listMediaRequest models.ListMediaRequest,
@@ -294,6 +226,101 @@ func (s *mediaService) GetAvailableDisplayPositions(
 		NextAvailableDisplayPosition: nextDisplayPositionAfterMax(used),
 		UnusedDisplayPositions:       inferUnusedDisplayPositions(used),
 	}, nil
+}
+
+func (s *mediaService) DeleteImage(
+	ctx context.Context,
+	id int,
+) error {
+	media, err := s.repository.GetImageByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	objectId := media.ObjectKey
+	log.Printf("Deleting object with ObjectID: %s", objectId)
+	err = s.storage.Delete(ctx, objectId)
+	if err != nil {
+		return err
+	}
+	err = s.repository.DeleteImage(ctx, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// private functions ------------------
+
+func validateListMediaRequest(request models.ListMediaRequest) error {
+
+	if !isValidMediaContext(request.MediaContext) {
+		return ErrInvalidMediaContext
+	}
+
+	if request.Season != nil && !isValidSeason(*request.Season) {
+		return ErrInvalidSeason
+	}
+
+	if request.MediaContext == string(constants.MediaContextSeason) && request.Season == nil {
+		return ErrSeasonRequiredForGivenContext
+	}
+
+	if request.MediaContext != string(constants.MediaContextSeason) && request.Season != nil {
+		return ErrSeasonNotAllowedForGivenContext
+	}
+
+	return nil
+}
+
+func (s *mediaService) validateDisplayPosition(ctx context.Context, request models.UploadMediaRequest) error {
+	usedPositions, err := s.repository.GetUsedDisplayPositions(
+		ctx, request.MediaContext, request.Season, request.Category,
+	)
+	if err != nil {
+		return err
+	}
+
+	availablePositions := inferUnusedDisplayPositions(usedPositions)
+	availablePositions = append(availablePositions, nextDisplayPositionAfterMax(usedPositions))
+
+	allowed := false
+	for _, pos := range availablePositions {
+		if pos == request.DisplayPosition {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return ErrDisplayPositionNotAllowedOrUsed
+	}
+	return nil
+}
+
+func validateUploadMetadata(request models.UploadMediaRequest) error {
+	if !isValidMediaContext(request.MediaContext) {
+		return ErrInvalidMediaContext
+	}
+
+	switch request.MediaContext {
+	case string(constants.MediaContextSeason):
+		err := validateRequestForSeasonContext(request.Season, request.Category)
+		if err != nil {
+			return err
+		}
+
+	case string(constants.MediaContextHome):
+		err := validateRequestForHomeContext(request.Season, request.Category)
+		if err != nil {
+			return err
+		}
+	case string(constants.MediaContextSingle):
+		err := validateRequestForSingleContext(request.Season, request.Category)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func validateAvailDisplayPositionsRequest(request models.GetAvailDisplayPositionsRequest) error {
