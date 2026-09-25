@@ -1,0 +1,208 @@
+openapi: 3.0.3
+info:
+  title: Veterans Hoquei API
+  version: 1.0.0
+  description: API para gestionar imágenes y documentos del Veterans Hoquei.
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Health
+  - name: Media
+  - name: Documents
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Comprueba que la API está activa
+      responses:
+        '200':
+          description: API disponible
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /media:
+    post:
+      tags: [Media]
+      operationId: uploadMedia
+      summary: Sube una imagen
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+                - media_context
+                - display_position
+              properties:
+                image:
+                  type: string
+                  format: binary
+                media_context:
+                  type: string
+                  enum: [season, home, single]
+                display_position:
+                  type: integer
+                file_description:
+                  type: string
+                  maxLength: 100
+                season:
+                  type: string
+                category:
+                  type: string
+                  enum: [pro, bases, vets, board, historic_board]
+                visible:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Imagen procesada correctamente
+        '400':
+          description: Datos inválidos
+        '415':
+          description: Tipo de imagen no soportado
+        '413':
+          description: Archivo demasiado grande
+
+    get:
+      tags: [Media]
+      operationId: listMedia
+      summary: Lista imágenes
+      parameters:
+        - name: media_context
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [season, home, single]
+        - name: season
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de imágenes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListMediaResponse'
+
+  /media/{id}:
+    delete:
+      tags: [Media]
+      operationId: deleteMedia
+      summary: Elimina una imagen
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Imagen eliminada
+        '404':
+          description: Imagen no encontrada
+
+  /documents:
+    post:
+      tags: [Documents]
+      operationId: uploadDocument
+      summary: Sube un documento
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - document
+                - document_title
+              properties:
+                document:
+                  type: string
+                  format: binary
+                document_title:
+                  type: string
+                document_description:
+                  type: string
+                  maxLength: 100
+      responses:
+        '200':
+          description: Documento subido correctamente
+
+    get:
+      tags: [Documents]
+      operationId: listDocuments
+      summary: Lista documentos
+      responses:
+        '200':
+          description: Lista de documentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListDocumentsResponse'
+
+components:
+  schemas:
+    ListMediaResponse:
+      type: object
+      properties:
+        original_filename:
+          type: string
+        file_description:
+          type: string
+          nullable: true
+        width:
+          type: integer
+        height:
+          type: integer
+        blur_url:
+          type: string
+          format: uri
+        small_url:
+          type: string
+          format: uri
+        medium_url:
+          type: string
+          format: uri
+        large_url:
+          type: string
+          format: uri
+        media_context:
+          type: string
+        season:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        display_position:
+          type: integer
+
+    ListDocumentsResponse:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        url:
+          type: string
+          format: uri
+        mime_type:
+          type: string
+        filesize:
+          type: integer
+          format: int64

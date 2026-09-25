@@ -10,36 +10,21 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 
-	"veterans-go-chi-server/internal/database"
+	config "veterans-go-chi-server/internal/config"
 	"veterans-go-chi-server/internal/handlers"
 	"veterans-go-chi-server/internal/repositories"
 	"veterans-go-chi-server/internal/services"
-	"veterans-go-chi-server/internal/storage"
 )
 
 func main() {
-	pool, err := database.NewPostgresPool()
+	pool, err := config.NewPostgresPool()
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	defer pool.Close()
 
-	var mediaStorage storage.MediaStorage
 
-	switch os.Getenv("STORAGE_DRIVER") {
-	case "r2":
-		mediaStorage = storage.NewR2Storage(
-			os.Getenv("R2_ACCOUNT_ID"),
-			os.Getenv("R2_ACCESS_KEY_ID"),
-			os.Getenv("R2_SECRET_ACCESS_KEY"),
-			os.Getenv("R2_BUCKET"),
-		)
-	case "local", "":
-		mediaStorage = storage.NewLocalStorage("./storage")
-	default:
-		log.Fatalf("unsupported storage driver")
-	}
+	mediaStorage := config.NewMediaStorage()
 
 	mediaRepository := repositories.NewMediaRepository(pool)
 	mediaService := services.NewMediaService(mediaRepository, mediaStorage, os.Getenv("R2_PUBLIC_BASE_URL"))
@@ -91,7 +76,7 @@ func main() {
 	/* endpoint to get a list of all documents metadata */
 	r.Get("/documents", documentHandler.List)
 
-	log.Printf("Server is listening on port %s ...", os.Getenv("PORT"))
+	log.Printf("Server is UP and listening on port %s ...", os.Getenv("PORT"))
 	if err := http.ListenAndServe(":"+os.Getenv("PORT"), r); err != nil {
 		log.Fatal(err)
 	}

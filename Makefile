@@ -8,7 +8,8 @@ GOOSE_DIR := migrations
 
 .PHONY: run build lint \
         docker-up docker-down docker-start docker-stop docker-logs \
-        migrate-create migrate-up migrate-down migrate-status
+        migrate-create prod-migrate-up prod-migrate-down prod-migrate-status \
+        local-migrate-up local-migrate-down local-migrate-status
 
 #! Go commands
 run: 
@@ -37,14 +38,23 @@ docker-logs:
 migrate-create:
 	goose -s -dir $(GOOSE_DIR) create $(name) sql
 
-migrate-up:
+# Production (Neon)
+prod-migrate-up:
 # 	goose -dir-env $(ENV_FILE) -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" up
 	goose -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" up
 
-migrate-down:
-# 	goose -env $(ENV_FILE) -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" down
+prod-migrate-down:
 	goose -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" down
 
-migrate-status:
-# 	goose -dir-env $(ENV_FILE) -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" status
+prod-migrate-status:
 	goose -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" status
+
+# Local
+local-migrate-up:
+	goose -dir $(GOOSE_DIR) postgres "$$LOCAL_DATABASE_URL" up
+
+local-migrate-down:
+	goose -dir $(GOOSE_DIR) postgres "$$LOCAL_DATABASE_URL" down
+
+local-migrate-status:
+	goose -dir $(GOOSE_DIR) postgres "$$LOCAL_DATABASE_URL" status
