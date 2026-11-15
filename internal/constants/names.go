@@ -25,5 +25,5 @@ const (
 	BasesCategory         MediaCategory = "bases"
 	VetsCategory          MediaCategory = "vets"
 	BoardCategory         MediaCategory = "board"
-	HistoricBoardCategory MediaCategory = "historic_board"
+	HistoricBoardCategory MediaCategory = "historical_member"
 )

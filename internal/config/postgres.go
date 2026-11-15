@@ -44,7 +44,7 @@ func NewPostgresPool() (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
-	if(DBDRIVER == "neon") {
+	if DBDRIVER == "neon" {
 		fmt.Println("Connected to Neon PostgreSQL")
 	} else {
 		fmt.Println("Connected to Local PostgreSQL")

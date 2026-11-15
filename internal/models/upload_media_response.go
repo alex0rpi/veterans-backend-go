@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type ProcessedMedia struct {
 	ID int64
 
@@ -16,9 +18,11 @@ type ProcessedMedia struct {
 	MediumKey string `json:"medium_key"`
 	LargeKey  string `json:"large_key"`
 
-	MediaContext    string  `json:"media_context"`
-	Season          *string `json:"season,omitempty"`
-	Category        *string `json:"category,omitempty"`
-	DisplayPosition int     `json:"display_position"`
-	Visible         *bool   `json:"visible"`
+	MediaContext    string    `json:"media_context"`
+	Season          *string   `json:"season,omitempty"`
+	Category        *string   `json:"category,omitempty"`
+	DisplayPosition int       `json:"display_position"`
+	Visible         *bool     `json:"visible"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       *time.Time `json:"updated_at"`
 }

@@ -2,8 +2,10 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"veterans-go-chi-server/internal/models"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -48,7 +50,7 @@ func (r *MediaRepository) Create(
 			$6, $7, $8, $9, $10,
 			$11, $12, $13, $14, $15,
 			$16)
-		RETURNING id
+		RETURNING id, created_at, updated_at
 		`,
 		image.ObjectKey,
 		image.OriginalFilename,
@@ -66,7 +68,7 @@ func (r *MediaRepository) Create(
 		image.Category,
 		image.DisplayPosition,
 		image.Visible,
-	).Scan(&image.ID)
+	).Scan(&image.ID, &image.CreatedAt, &image.UpdatedAt)
 }
 
 func (r *MediaRepository) Delete(
@@ -92,7 +94,7 @@ func (r *MediaRepository) ListMedia(
 		SELECT id, object_key, original_filename, file_description,
 			mime_type, width, height, filesize, blur_key,
 			small_key, medium_key, large_key, media_context,
-			season, category, display_position, visible
+			season, category, display_position, visible, created_at, updated_at
 		FROM image_metadata
 		WHERE media_context = $1 AND ($2::text IS NULL OR season = $2)
 		ORDER BY display_position ASC NULLS LAST, id ASC
@@ -126,6 +128,8 @@ func (r *MediaRepository) ListMedia(
 			&media.Category,
 			&media.DisplayPosition,
 			&media.Visible,
+			&media.CreatedAt,
+			&media.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -155,6 +159,9 @@ func (r *MediaRepository) GetImageByID(ctx context.Context, id int) (*models.Pro
 		&media.ID,
 		&media.ObjectKey,
 	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, pgx.ErrNoRows
+		}
 		return nil, err
 	}
 	return &media, nil

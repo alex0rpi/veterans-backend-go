@@ -34,11 +34,21 @@ docker-stop:
 docker-logs:
 	docker compose logs -f postgres
 
-#> MIGRATION COMMANDS --------------------------------
+#> POSTGRES DB MIGRATION COMMANDS --------------------------------
 migrate-create:
 	goose -s -dir $(GOOSE_DIR) create $(name) sql
 
-# Production (Neon)
+# Local DB Migration Commands --------------------------------
+local-migrate-up:
+	goose -dir $(GOOSE_DIR) postgres "$$LOCAL_DATABASE_URL" up
+
+local-migrate-down:
+	goose -dir $(GOOSE_DIR) postgres "$$LOCAL_DATABASE_URL" down
+
+local-migrate-status:
+	goose -dir $(GOOSE_DIR) postgres "$$LOCAL_DATABASE_URL" status
+
+# Production (Neon) DB Migration Commands --------------------------------
 prod-migrate-up:
 # 	goose -dir-env $(ENV_FILE) -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" up
 	goose -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" up
@@ -49,12 +59,3 @@ prod-migrate-down:
 prod-migrate-status:
 	goose -dir $(GOOSE_DIR) postgres "$$DATABASE_URL" status
 
-# Local
-local-migrate-up:
-	goose -dir $(GOOSE_DIR) postgres "$$LOCAL_DATABASE_URL" up
-
-local-migrate-down:
-	goose -dir $(GOOSE_DIR) postgres "$$LOCAL_DATABASE_URL" down
-
-local-migrate-status:
-	goose -dir $(GOOSE_DIR) postgres "$$LOCAL_DATABASE_URL" status

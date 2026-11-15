@@ -3,10 +3,12 @@ package services
 import (
 	"bytes"
 	"context"
+	"errors"
 	"image"
 	"io"
 	"log"
 
+	"github.com/jackc/pgx/v5"
 	"veterans-go-chi-server/internal/constants"
 	"veterans-go-chi-server/internal/imaging"
 	"veterans-go-chi-server/internal/models"
@@ -24,12 +26,12 @@ type MediaService interface {
 	ListMedia(
 		ctx context.Context,
 		listMediaRequest models.ListMediaRequest,
-	) ([]models.ListMediaResponse, error)
+	) ([]models.MediaItem, error)
 	GetAvailableDisplayPositions(
 		ctx context.Context,
 		request models.GetAvailDisplayPositionsRequest,
 	) (*models.GetAvailDisplayPositionsResponse, error)
-	DeleteImage(
+	DeleteImageById(
 		ctx context.Context,
 		id int,
 	) error
@@ -170,7 +172,7 @@ func (s *mediaService) Upload(
 func (s *mediaService) ListMedia(
 	ctx context.Context,
 	listMediaRequest models.ListMediaRequest,
-) ([]models.ListMediaResponse, error) {
+) ([]models.MediaItem, error) {
 	if err := validateListMediaRequest(listMediaRequest); err != nil {
 		return nil, err
 	}
@@ -182,23 +184,31 @@ func (s *mediaService) ListMedia(
 	if err != nil {
 		return nil, err
 	}
-	response := make(
-		[]models.ListMediaResponse, 0, len(processedMedia))
+	response := make([]models.MediaItem, 0, len(processedMedia))
 	for _, media := range processedMedia {
-		response = append(response, models.ListMediaResponse{
+		visible := true
+		if media.Visible != nil {
+			visible = *media.Visible
+		}
+		item := models.MediaItem{
+			ID:               int(media.ID),
 			OriginalFilename: media.OriginalFilename,
 			FileDescription:  media.FileDescription,
 			Width:            media.Width,
 			Height:           media.Height,
-			BlurMediaURL:     s.publicBaseURL + "/" + media.BlurKey,
-			SmallMediaURL:    s.publicBaseURL + "/" + media.SmallKey,
-			MediumMediaURL:   s.publicBaseURL + "/" + media.MediumKey,
-			LargeMediaURL:    s.publicBaseURL + "/" + media.LargeKey,
 			MediaContext:     media.MediaContext,
 			Season:           media.Season,
 			Category:         media.Category,
 			DisplayPosition:  media.DisplayPosition,
-		})
+			Visible:          visible,
+			CreatedAt:        media.CreatedAt,
+			UpdatedAt:        media.UpdatedAt,
+		}
+		item.URLs.Blur = s.publicBaseURL + "/" + media.BlurKey
+		item.URLs.Small = s.publicBaseURL + "/" + media.SmallKey
+		item.URLs.Medium = s.publicBaseURL + "/" + media.MediumKey
+		item.URLs.Large = s.publicBaseURL + "/" + media.LargeKey
+		response = append(response, item)
 	}
 	return response, nil
 }
@@ -228,12 +238,15 @@ func (s *mediaService) GetAvailableDisplayPositions(
 	}, nil
 }
 
-func (s *mediaService) DeleteImage(
+func (s *mediaService) DeleteImageById(
 	ctx context.Context,
 	id int,
 ) error {
 	media, err := s.repository.GetImageByID(ctx, id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrMediaNotFound
+		}
 		return err
 	}
 	objectId := media.ObjectKey

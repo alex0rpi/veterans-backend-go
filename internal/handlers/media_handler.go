@@ -115,6 +115,8 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 		Season:       season,
 	}
 
+	// For now I'm not including a category filter in the ListMediaRequest because the season page will get all season related pictures. There is no separate page/section for each category.
+
 	log.Printf(
 		"REQUEST context=%q seasonParam=%q seasonPointerNil=%t",
 		listMediaRequest.MediaContext,
@@ -122,6 +124,7 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 		listMediaRequest.Season == nil,
 	)
 
+	// Invoke the service to list media items metadata based on the request parameters
 	mediaList, err := h.service.ListMedia(
 		r.Context(),
 		listMediaRequest,
@@ -139,8 +142,13 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	response := models.ListMediaResponse{
+		MediaItems: mediaList,
+		Total:      len(mediaList),
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(mediaList); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, "Error encoding response: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -206,7 +214,7 @@ func getOptionalBoolFormValue(r *http.Request, key string) *bool {
 	return &parsed
 }
 
-func (h *MediaHandler) DeleteImage(w http.ResponseWriter, r *http.Request) {
+func (h *MediaHandler) DeleteImageById(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		http.Error(w, "Missing media ID", http.StatusBadRequest)
@@ -218,7 +226,7 @@ func (h *MediaHandler) DeleteImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.service.DeleteImage(
+	err = h.service.DeleteImageById(
 		r.Context(),
 		idInt,
 	)
