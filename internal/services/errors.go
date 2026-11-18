@@ -2,6 +2,17 @@ package services
 
 import "errors"
 
+// DisplayPositionError is a custom error that includes information about available display positions
+type DisplayPositionError struct {
+	Message              string
+	AvailablePositions   []int
+	NextPositionAfterMax int
+}
+
+func (e *DisplayPositionError) Error() string {
+	return e.Message
+}
+
 var (
 	ErrUnsupportedMediaType = errors.New(
 		"unsupported media type",

@@ -8,13 +8,14 @@ import (
 	"io"
 	"log"
 
-	"github.com/jackc/pgx/v5"
 	"veterans-go-chi-server/internal/constants"
 	"veterans-go-chi-server/internal/imaging"
 	"veterans-go-chi-server/internal/models"
 	"veterans-go-chi-server/internal/repositories"
 	"veterans-go-chi-server/internal/storage"
 	"veterans-go-chi-server/internal/utils"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // This interface is a contract that defines the methods that any media service implementation must provide.
@@ -35,6 +36,11 @@ type MediaService interface {
 		ctx context.Context,
 		id int,
 	) error
+	UpdateImageMetadata(
+		ctx context.Context,
+		id int,
+		updateRequest models.UpdateMediaItemRequest,
+	) (*models.UpdatedMediaItem, error)
 }
 
 // This struct is the blueprint containing the dependencies required for the media service to function.
@@ -74,7 +80,7 @@ func (s *mediaService) Upload(
 		return nil, err
 	}
 
-	err = s.validateDisplayPosition(ctx, request)
+	err = s.validateDisplayPosition(ctx, request.DisplayPosition, request.MediaContext, request.Season, request.Category)
 	if err != nil {
 		return nil, err
 	}
@@ -180,6 +186,7 @@ func (s *mediaService) ListMedia(
 		ctx,
 		listMediaRequest.MediaContext,
 		listMediaRequest.Season,
+		listMediaRequest.Category,
 	)
 	if err != nil {
 		return nil, err
@@ -262,7 +269,44 @@ func (s *mediaService) DeleteImageById(
 	return nil
 }
 
-// private functions ------------------
+func (s *mediaService) UpdateImageMetadata(
+	ctx context.Context,
+	id int,
+	updateRequest models.UpdateMediaItemRequest,
+) (*models.UpdatedMediaItem, error) {
+	// If mediaContext, season, or category are provided, displayPosition is REQUIRED
+	if (updateRequest.MediaContext != nil || updateRequest.Season != nil || updateRequest.Category != nil) &&
+		updateRequest.DisplayPosition == nil {
+		return nil, ErrDisplayPositionRequired
+	}
+
+	// Validar mediaContext y parámetros asociados si se proporciona
+	if updateRequest.MediaContext != nil {
+		err := validateMediaContextAndParams(*updateRequest.MediaContext, updateRequest.Season, updateRequest.Category)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Validar displayPosition si se proporciona
+	if updateRequest.DisplayPosition != nil {
+		if updateRequest.MediaContext == nil {
+			return nil, ErrInvalidMediaContext
+		}
+		err := s.validateDisplayPosition(
+			ctx,
+			*updateRequest.DisplayPosition,
+			*updateRequest.MediaContext,
+			updateRequest.Season,
+			updateRequest.Category,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return s.repository.UpdateMedia(ctx, id, updateRequest)
+}
 
 func validateListMediaRequest(request models.ListMediaRequest) error {
 
@@ -270,41 +314,64 @@ func validateListMediaRequest(request models.ListMediaRequest) error {
 		return ErrInvalidMediaContext
 	}
 
-	if request.Season != nil && !isValidSeason(*request.Season) {
-		return ErrInvalidSeason
-	}
+	switch request.MediaContext {
+	case string(constants.MediaContextSeason):
+		// Season REQUIRES season, category is OPTIONAL
+		if request.Season == nil {
+			return ErrSeasonRequiredForGivenContext
+		}
+		if !isValidSeason(*request.Season) {
+			return ErrInvalidSeason
+		}
+		// If category is provided, it must be valid
+		if request.Category != nil && !isValidCategory(*request.Category) {
+			return ErrInvalidCategory
+		}
 
-	if request.MediaContext == string(constants.MediaContextSeason) && request.Season == nil {
-		return ErrSeasonRequiredForGivenContext
-	}
-
-	if request.MediaContext != string(constants.MediaContextSeason) && request.Season != nil {
-		return ErrSeasonNotAllowedForGivenContext
+	case string(constants.MediaContextHome), string(constants.MediaContextBoard), string(constants.MediaContextHistoricMember):
+		// Home, Board, and Historical do NOT allow season or category
+		if request.Season != nil {
+			return ErrSeasonNotAllowedForGivenContext
+		}
+		if request.Category != nil {
+			return ErrCategoryNotAllowedForGivenContext
+		}
 	}
 
 	return nil
 }
 
-func (s *mediaService) validateDisplayPosition(ctx context.Context, request models.UploadMediaRequest) error {
+func (s *mediaService) validateDisplayPosition(
+	ctx context.Context,
+	displayPos int,
+	mediaContext string,
+	season *string,
+	category *string,
+) error {
 	usedPositions, err := s.repository.GetUsedDisplayPositions(
-		ctx, request.MediaContext, request.Season, request.Category,
+		ctx, mediaContext, season, category,
 	)
 	if err != nil {
 		return err
 	}
 
 	availablePositions := inferUnusedDisplayPositions(usedPositions)
-	availablePositions = append(availablePositions, nextDisplayPositionAfterMax(usedPositions))
+	nextPosition := nextDisplayPositionAfterMax(usedPositions)
+	availablePositions = append(availablePositions, nextPosition)
 
 	allowed := false
 	for _, pos := range availablePositions {
-		if pos == request.DisplayPosition {
+		if pos == displayPos {
 			allowed = true
 			break
 		}
 	}
 	if !allowed {
-		return ErrDisplayPositionNotAllowedOrUsed
+		return &DisplayPositionError{
+			Message:              "display position is either not allowed or already used",
+			AvailablePositions:   availablePositions[:len(availablePositions)-1],
+			NextPositionAfterMax: nextPosition,
+		}
 	}
 	return nil
 }
@@ -321,13 +388,8 @@ func validateUploadMetadata(request models.UploadMediaRequest) error {
 			return err
 		}
 
-	case string(constants.MediaContextHome):
-		err := validateRequestForHomeContext(request.Season, request.Category)
-		if err != nil {
-			return err
-		}
-	case string(constants.MediaContextSingle):
-		err := validateRequestForSingleContext(request.Season, request.Category)
+	case string(constants.MediaContextHome), string(constants.MediaContextBoard), string(constants.MediaContextHistoricMember):
+		err := validateRequestForNonSeasonContext(request.Season, request.Category)
 		if err != nil {
 			return err
 		}
@@ -350,38 +412,13 @@ func validateAvailDisplayPositionsRequest(request models.GetAvailDisplayPosition
 			return err
 		}
 
-	case string(constants.MediaContextHome):
-		err := validateRequestForHomeContext(request.Season, request.Category)
-		if err != nil {
-			return err
-		}
-	case string(constants.MediaContextSingle):
-		err := validateRequestForSingleContext(request.Season, request.Category)
+	case string(constants.MediaContextHome), string(constants.MediaContextBoard), string(constants.MediaContextHistoricMember):
+		err := validateRequestForNonSeasonContext(request.Season, request.Category)
 		if err != nil {
 			return err
 		}
 	}
 
-	return nil
-}
-
-func validateRequestForHomeContext(season, category *string) error {
-	if season != nil {
-		return ErrSeasonNotAllowedForGivenContext
-	}
-	if category != nil {
-		return ErrCategoryNotAllowedForGivenContext
-	}
-	return nil
-}
-
-func validateRequestForSingleContext(season, category *string) error {
-	if season != nil {
-		return ErrSeasonNotAllowedForGivenContext
-	}
-	if category != nil {
-		return ErrCategoryNotAllowedForGivenContext
-	}
 	return nil
 }
 
@@ -400,6 +437,36 @@ func validateRequestForSeasonContext(season, category *string) error {
 	}
 	if *category != string(constants.BasesCategory) && *category != string(constants.ProCategory) && *category != string(constants.VetsCategory) {
 		return ErrCategoryNotAllowedForGivenContext
+	}
+	return nil
+}
+
+func validateRequestForNonSeasonContext(season, category *string) error {
+	if season != nil {
+		return ErrSeasonNotAllowedForGivenContext
+	}
+	if category != nil {
+		return ErrCategoryNotAllowedForGivenContext
+	}
+	return nil
+}
+
+func validateMediaContextAndParams(mediaContext string, season, category *string) error {
+	if !isValidMediaContext(mediaContext) {
+		return ErrInvalidMediaContext
+	}
+
+	switch mediaContext {
+	case string(constants.MediaContextSeason):
+		err := validateRequestForSeasonContext(season, category)
+		if err != nil {
+			return err
+		}
+	case string(constants.MediaContextHome), string(constants.MediaContextBoard), string(constants.MediaContextHistoricMember):
+		err := validateRequestForNonSeasonContext(season, category)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

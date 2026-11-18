@@ -13,7 +13,8 @@ func isValidMediaContext(value string) bool {
 	case
 		string(constants.MediaContextSeason),
 		string(constants.MediaContextHome),
-		string(constants.MediaContextSingle):
+		string(constants.MediaContextBoard),
+		string(constants.MediaContextHistoricMember):
 		return true
 	default:
 		return false
@@ -25,9 +26,7 @@ func isValidCategory(value string) bool {
 	case
 		string(constants.ProCategory),
 		string(constants.BasesCategory),
-		string(constants.VetsCategory),
-		string(constants.BoardCategory),
-		string(constants.HistoricBoardCategory):
+		string(constants.VetsCategory):
 		return true
 	default:
 		return false

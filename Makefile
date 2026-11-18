@@ -22,6 +22,9 @@ format:
 lint:
 	golangci-lint run
 
+debug:
+	dlv debug ./cmd/api
+
 #* DOCKER COMMANDS --------------------------------
 docker-up:
 	docker compose up -d

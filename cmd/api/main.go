@@ -58,7 +58,7 @@ func main() {
 	r.Delete("/media/{id}", mediaHandler.DeleteImageById)
 
 	/* endpoint to update a single media element */
-	// r.Put("/media/{id}", mediaHandler.Update)
+	r.Patch("/media/{id}", mediaHandler.UpdateImageMetadata)
 
 	/* endpoint to get a list of media items filtered by context and optionally by season and category query params */
 	r.Get("/media", mediaHandler.ListMedia)

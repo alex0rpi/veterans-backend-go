@@ -11,12 +11,12 @@ type MediaItem struct {
 	Width            int     `json:"width"`
 	Height           int     `json:"height"`
 
-	MediaContext    string    `json:"media_context"`
-	Season          *string   `json:"season,omitempty"`
-	Category        *string   `json:"category,omitempty"`
-	DisplayPosition int       `json:"display_position"`
-	Visible         bool      `json:"visible"`
-	CreatedAt       time.Time `json:"created_at"`
+	MediaContext    string     `json:"media_context"`
+	Season          *string    `json:"season,omitempty"`
+	Category        *string    `json:"category,omitempty"`
+	DisplayPosition int        `json:"display_position"`
+	Visible         bool       `json:"visible"`
+	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       *time.Time `json:"updated_at"`
 
 	// URLs for different media sizes

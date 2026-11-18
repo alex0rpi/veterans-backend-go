@@ -46,7 +46,7 @@ paths:
                   format: binary
                 media_context:
                   type: string
-                  enum: [season, home, single]
+                  enum: [season, home, board, historic]
                 display_position:
                   type: integer
                 file_description:
@@ -56,7 +56,7 @@ paths:
                   type: string
                 category:
                   type: string
-                  enum: [pro, bases, vets, board, historic_board]
+                  enum: [pro, bases, vets]
                 visible:
                   type: boolean
                   default: true
@@ -80,7 +80,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [season, home, single]
+            enum: [season, home, board, historic]
         - name: season
           in: query
           schema:

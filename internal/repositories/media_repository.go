@@ -87,6 +87,7 @@ func (r *MediaRepository) ListMedia(
 	ctx context.Context,
 	mediaContext string,
 	season *string,
+	category *string,
 ) ([]models.ProcessedMedia, error) {
 	rows, err := r.db.Query(
 		ctx,
@@ -96,11 +97,12 @@ func (r *MediaRepository) ListMedia(
 			small_key, medium_key, large_key, media_context,
 			season, category, display_position, visible, created_at, updated_at
 		FROM image_metadata
-		WHERE media_context = $1 AND ($2::text IS NULL OR season = $2)
+		WHERE media_context = $1 AND ($2::text IS NULL OR season = $2) AND ($3::text IS NULL OR category = $3)
 		ORDER BY display_position ASC NULLS LAST, id ASC
 		`,
 		mediaContext,
 		season,
+		category,
 	)
 	if err != nil {
 		return nil, err
@@ -141,6 +143,50 @@ func (r *MediaRepository) ListMedia(
 	}
 
 	return mediaList, nil
+}
+
+func (r *MediaRepository) UpdateMedia(
+	ctx context.Context,
+	id int,
+	updateData models.UpdateMediaItemRequest,
+) (*models.UpdatedMediaItem, error) {
+	row := r.db.QueryRow(
+		ctx,
+		`UPDATE image_metadata
+		SET original_filename = COALESCE($2, original_filename),
+			file_description = COALESCE($3, file_description),
+			media_context = COALESCE($4, media_context),
+			season = COALESCE($5, season),
+			category = COALESCE($6, category),
+			display_position = COALESCE($7, display_position),
+			visible = COALESCE($8, visible),
+			updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, original_filename, file_description, media_context, season, category, display_position, visible, updated_at`,
+		id,
+		updateData.OriginalFilename,
+		updateData.FileDescription,
+		updateData.MediaContext,
+		updateData.Season,
+		updateData.Category,
+		updateData.DisplayPosition,
+		updateData.Visible,
+	)
+	var updated models.UpdatedMediaItem
+	err := row.Scan(
+		&updated.OriginalFilename,
+		&updated.FileDescription,
+		&updated.MediaContext,
+		&updated.Season,
+		&updated.Category,
+		&updated.DisplayPosition,
+		&updated.Visible,
+		&updated.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &updated, nil
 }
 
 func (r *MediaRepository) GetImageByID(ctx context.Context, id int) (*models.ProcessedMedia, error) {

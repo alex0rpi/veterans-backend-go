@@ -72,6 +72,20 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
+		// Handle DisplayPositionError with detailed information
+		if dpErr, matchesError := err.(*services.DisplayPositionError); matchesError {
+			response := map[string]interface{}{
+				"error":                     dpErr.Message,
+				"available_inner_positions": dpErr.AvailablePositions,
+				"next_position_after_last":  dpErr.NextPositionAfterMax,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				http.Error(w, "Error encoding response: "+err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
 		if errors.Is(err, services.ErrUnsupportedMediaType) {
 			http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 			return
@@ -110,18 +124,23 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 		season = &seasonParam
 	}
 
+	var category *string
+	categoryParam := r.URL.Query().Get("category")
+	if categoryParam != "" {
+		category = &categoryParam
+	}
+
 	listMediaRequest := models.ListMediaRequest{
 		MediaContext: r.URL.Query().Get("media_context"),
 		Season:       season,
+		Category:     category,
 	}
 
-	// For now I'm not including a category filter in the ListMediaRequest because the season page will get all season related pictures. There is no separate page/section for each category.
-
 	log.Printf(
-		"REQUEST context=%q seasonParam=%q seasonPointerNil=%t",
+		"REQUEST context=%q seasonParam=%q categoryParam=%q",
 		listMediaRequest.MediaContext,
 		seasonParam,
-		listMediaRequest.Season == nil,
+		categoryParam,
 	)
 
 	// Invoke the service to list media items metadata based on the request parameters
@@ -152,6 +171,84 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error encoding response: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *MediaHandler) DeleteImageById(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		http.Error(w, "Missing media ID", http.StatusBadRequest)
+		return
+	}
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		http.Error(w, "Invalid media ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.service.DeleteImageById(
+		r.Context(),
+		idInt,
+	)
+	if err != nil {
+		if errors.Is(err, services.ErrMediaNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *MediaHandler) UpdateImageMetadata(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	idInt, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid media ID", http.StatusBadRequest)
+		return
+	}
+
+	// Parse JSON body
+	var updateRequest models.UpdateMediaItemRequest
+	if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
+		http.Error(
+			w,
+			"Invalid update request body: "+err.Error(),
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	updatedItem, err := h.service.UpdateImageMetadata(
+		r.Context(),
+		idInt,
+		updateRequest,
+	)
+
+	if err != nil {
+		if errors.Is(err, services.ErrMediaNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		if dpErr, ok := err.(*services.DisplayPositionError); ok {
+			response := map[string]interface{}{
+				"error":                     dpErr.Message,
+				"available_inner_positions": dpErr.AvailablePositions,
+				"next_position_after_last":  dpErr.NextPositionAfterMax,
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+		// ... treat other errors
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedItem)
 }
 
 func (h *MediaHandler) GetAvailableDisplayPositions(w http.ResponseWriter, r *http.Request) {
@@ -199,6 +296,8 @@ func (h *MediaHandler) GetAvailableDisplayPositions(w http.ResponseWriter, r *ht
 
 }
 
+// Secondary functions for handling optional form values and query parameters
+
 func getOptionalBoolFormValue(r *http.Request, key string) *bool {
 	value := r.FormValue(key)
 	defaultValue := true
@@ -212,34 +311,6 @@ func getOptionalBoolFormValue(r *http.Request, key string) *bool {
 	}
 
 	return &parsed
-}
-
-func (h *MediaHandler) DeleteImageById(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	if id == "" {
-		http.Error(w, "Missing media ID", http.StatusBadRequest)
-		return
-	}
-	idInt, err := strconv.Atoi(id)
-	if err != nil {
-		http.Error(w, "Invalid media ID", http.StatusBadRequest)
-		return
-	}
-
-	err = h.service.DeleteImageById(
-		r.Context(),
-		idInt,
-	)
-	if err != nil {
-		if errors.Is(err, services.ErrMediaNotFound) {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func getOptionalDescriptionValue(r *http.Request, key string) (*string, error) {
