@@ -14,9 +14,9 @@ func NewPostgresPool() (*pgxpool.Pool, error) {
 	DBDRIVER := os.Getenv("DB_DRIVER")
 	switch DBDRIVER {
 	case "local":
-		os.Setenv("DATABASE_URL", os.Getenv("LOCAL_DATABASE_URL"))
+		_ = os.Setenv("DATABASE_URL", os.Getenv("LOCAL_DATABASE_URL"))
 	case "neon":
-		os.Setenv("DATABASE_URL", os.Getenv("DATABASE_URL"))
+		_ = os.Setenv("DATABASE_URL", os.Getenv("DATABASE_URL"))
 	default:
 		return nil, fmt.Errorf(
 			"unsupported DB_DRIVER: %q",

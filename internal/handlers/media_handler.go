@@ -239,7 +239,7 @@ func (h *MediaHandler) UpdateImageMetadata(w http.ResponseWriter, r *http.Reques
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 		// ... treat other errors
@@ -248,7 +248,7 @@ func (h *MediaHandler) UpdateImageMetadata(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updatedItem)
+	_ = json.NewEncoder(w).Encode(updatedItem)
 }
 
 func (h *MediaHandler) GetAvailableDisplayPositions(w http.ResponseWriter, r *http.Request) {

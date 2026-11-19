@@ -6,9 +6,8 @@ type UpdateMediaItemRequest struct {
 	OriginalFilename *string `json:"original_filename"`
 	FileDescription  *string `json:"file_description"`
 
-	MediaContext    *string `json:"media_context"`
-	Season          *string `json:"season,omitempty"`
-	Category        *string `json:"category,omitempty"`
-	DisplayPosition *int    `json:"display_position"`
-	Visible         *bool   `json:"visible"`
+	MediaContext *string `json:"media_context"`
+	Season       *string `json:"season,omitempty"`
+	Category     *string `json:"category,omitempty"`
+	Visible      *bool   `json:"visible"`
 }

@@ -158,18 +158,16 @@ func (r *MediaRepository) UpdateMedia(
 			media_context = COALESCE($4, media_context),
 			season = COALESCE($5, season),
 			category = COALESCE($6, category),
-			display_position = COALESCE($7, display_position),
 			visible = COALESCE($8, visible),
 			updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, original_filename, file_description, media_context, season, category, display_position, visible, updated_at`,
+		RETURNING id, original_filename, file_description, media_context, season, category, visible, updated_at`,
 		id,
 		updateData.OriginalFilename,
 		updateData.FileDescription,
 		updateData.MediaContext,
 		updateData.Season,
 		updateData.Category,
-		updateData.DisplayPosition,
 		updateData.Visible,
 	)
 	var updated models.UpdatedMediaItem
@@ -179,7 +177,6 @@ func (r *MediaRepository) UpdateMedia(
 		&updated.MediaContext,
 		&updated.Season,
 		&updated.Category,
-		&updated.DisplayPosition,
 		&updated.Visible,
 		&updated.UpdatedAt,
 	)

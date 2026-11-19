@@ -9,7 +9,6 @@ import (
 	"log"
 
 	"veterans-go-chi-server/internal/constants"
-	"veterans-go-chi-server/internal/imaging"
 	"veterans-go-chi-server/internal/models"
 	"veterans-go-chi-server/internal/repositories"
 	"veterans-go-chi-server/internal/storage"
@@ -118,7 +117,7 @@ func (s *mediaService) Upload(
 	}
 
 	//Generate the different image variants from the bunch of bytes that represent the image. This will return a slice of GeneratedVariant structs, each containing the name of the variant and the corresponding image data.
-	variants, err := imaging.GenerateVariants(img)
+	variants, err := utils.GenerateVariants(img)
 	if err != nil {
 		return nil, err
 	}
@@ -274,32 +273,10 @@ func (s *mediaService) UpdateImageMetadata(
 	id int,
 	updateRequest models.UpdateMediaItemRequest,
 ) (*models.UpdatedMediaItem, error) {
-	// If mediaContext, season, or category are provided, displayPosition is REQUIRED
-	if (updateRequest.MediaContext != nil || updateRequest.Season != nil || updateRequest.Category != nil) &&
-		updateRequest.DisplayPosition == nil {
-		return nil, ErrDisplayPositionRequired
-	}
 
 	// Validar mediaContext y parámetros asociados si se proporciona
 	if updateRequest.MediaContext != nil {
 		err := validateMediaContextAndParams(*updateRequest.MediaContext, updateRequest.Season, updateRequest.Category)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Validar displayPosition si se proporciona
-	if updateRequest.DisplayPosition != nil {
-		if updateRequest.MediaContext == nil {
-			return nil, ErrInvalidMediaContext
-		}
-		err := s.validateDisplayPosition(
-			ctx,
-			*updateRequest.DisplayPosition,
-			*updateRequest.MediaContext,
-			updateRequest.Season,
-			updateRequest.Category,
-		)
 		if err != nil {
 			return nil, err
 		}

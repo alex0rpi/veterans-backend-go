@@ -3,9 +3,9 @@ package constants
 type MediaContext string
 
 const (
-	MediaContextSeason     MediaContext = "season"
-	MediaContextHome       MediaContext = "home"
-	MediaContextBoard      MediaContext = "board"
+	MediaContextSeason         MediaContext = "season"
+	MediaContextHome           MediaContext = "home"
+	MediaContextBoard          MediaContext = "board"
 	MediaContextHistoricMember MediaContext = "historic_member"
 )
 
