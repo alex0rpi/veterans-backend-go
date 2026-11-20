@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"veterans-go-chi-server/internal/models"
 
 	"github.com/jackc/pgx/v5"
@@ -145,6 +147,40 @@ func (r *MediaRepository) ListMedia(
 	return mediaList, nil
 }
 
+func (r *MediaRepository) UpdateDisplayPositions(
+	ctx context.Context,
+	newPositions []models.PositionItem,
+) error {
+	// Usar batch para actualizar múltiples registros de forma eficiente
+	batch := &pgx.Batch{}
+
+	for _, item := range newPositions {
+		batch.Queue(
+			`UPDATE image_metadata SET display_position = $1 WHERE id = $2`,
+			item.Position,
+			item.ID,
+		)
+	}
+
+	// Enviar todas las queries en una transacción
+	results := r.db.SendBatch(ctx, batch)
+	defer func() { _ = results.Close() }()
+
+	// Comprobar que todas las updates se ejecutaron
+	for i := 0; i < batch.Len(); i++ {
+		commandTag, err := results.Exec()
+		if err != nil {
+			return err
+		}
+		if commandTag.RowsAffected() == 0 {
+			return fmt.Errorf("image id %d not found", newPositions[i].ID)
+		}
+		log.Printf("Updated %d rows for position item %d", commandTag.RowsAffected(), i)
+	}
+
+	return nil
+}
+
 func (r *MediaRepository) UpdateMedia(
 	ctx context.Context,
 	id int,
@@ -158,7 +194,7 @@ func (r *MediaRepository) UpdateMedia(
 			media_context = COALESCE($4, media_context),
 			season = COALESCE($5, season),
 			category = COALESCE($6, category),
-			visible = COALESCE($8, visible),
+			visible = COALESCE($7, visible),
 			updated_at = NOW()
 		WHERE id = $1
 		RETURNING id, original_filename, file_description, media_context, season, category, visible, updated_at`,

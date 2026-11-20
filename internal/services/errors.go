@@ -13,6 +13,18 @@ func (e *DisplayPositionError) Error() string {
 	return e.Message
 }
 
+// PositionSequenceError es un error personalizado para secuencias de posiciones inválidas
+type PositionSequenceError struct {
+	Message    string // "duplicate position 5" o "position sequence has gaps, missing position 3"
+	ErrorType  string // "duplicate" o "gap"
+	ErrorPos   int    // la posición problemática
+	MissingPos int    // para "gap": qué posición falta
+}
+
+func (e *PositionSequenceError) Error() string {
+	return e.Message
+}
+
 var (
 	ErrUnsupportedMediaType = errors.New(
 		"unsupported media type",
@@ -71,6 +83,10 @@ var (
 
 	ErrDisplayPositionNotAllowedOrUsed = errors.New(
 		"display position is either not allowed or already used",
+	)
+
+	ErrDisplayPositionSequenceNotValid = errors.New(
+		"display position sequence is not valid",
 	)
 
 	//* Not found errors ------------------

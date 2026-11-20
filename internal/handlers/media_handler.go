@@ -231,18 +231,6 @@ func (h *MediaHandler) UpdateImageMetadata(w http.ResponseWriter, r *http.Reques
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		if dpErr, ok := err.(*services.DisplayPositionError); ok {
-			response := map[string]interface{}{
-				"error":                     dpErr.Message,
-				"available_inner_positions": dpErr.AvailablePositions,
-				"next_position_after_last":  dpErr.NextPositionAfterMax,
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(response)
-			return
-		}
-		// ... treat other errors
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -251,49 +239,45 @@ func (h *MediaHandler) UpdateImageMetadata(w http.ResponseWriter, r *http.Reques
 	_ = json.NewEncoder(w).Encode(updatedItem)
 }
 
-func (h *MediaHandler) GetAvailableDisplayPositions(w http.ResponseWriter, r *http.Request) {
-	var season, category *string
-
-	mediaContext := r.URL.Query().Get("media_context")
-	if mediaContext == "" {
-		http.Error(w, "media_context query parameter is required", http.StatusBadRequest)
+func (h *MediaHandler) UpdateImageDisplayPositions(w http.ResponseWriter, r *http.Request) {
+	// Parse JSON body
+	var updatePositionsRequest models.UpdateDisplayPositionsRequest
+	if err := json.NewDecoder(r.Body).Decode(&updatePositionsRequest); err != nil {
+		http.Error(
+			w,
+			"Invalid display positions update request body: "+err.Error(),
+			http.StatusBadRequest,
+		)
 		return
 	}
-	if s := r.URL.Query().Get("season"); s != "" {
-		season = &s
-	}
-	if cat := r.URL.Query().Get("category"); cat != "" {
-		category = &cat
-	}
 
-	request := models.GetAvailDisplayPositionsRequest{
-		MediaContext: mediaContext,
-		Season:       season,
-		Category:     category,
-	}
-
-	result, err := h.service.GetAvailableDisplayPositions(r.Context(), request)
+	err := h.service.UpdateImageDisplayPositions(r.Context(), updatePositionsRequest)
 	if err != nil {
-		if errors.Is(err, services.ErrInvalidMediaContext) ||
-			errors.Is(err, services.ErrInvalidSeason) ||
-			errors.Is(err, services.ErrSeasonRequiredForGivenContext) ||
-			errors.Is(err, services.ErrSeasonNotAllowedForGivenContext) ||
-			errors.Is(err, services.ErrCategoryRequiredForGivenContext) ||
-			errors.Is(err, services.ErrCategoryNotAllowedForGivenContext) ||
-			errors.Is(err, services.ErrInvalidCategory) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		// Validar si es error de secuencia (bad request)
+		if posSeqErr, ok := err.(*services.PositionSequenceError); ok {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			errorResponse := map[string]interface{}{
+				"error":      posSeqErr.Message,
+				"error_type": posSeqErr.ErrorType,
+			}
+			switch posSeqErr.ErrorType {
+			case "gap":
+				errorResponse["missing_position"] = posSeqErr.MissingPos
+			case "duplicate":
+				errorResponse["duplicate_position"] = posSeqErr.ErrorPos
+			}
+			_ = json.NewEncoder(w).Encode(errorResponse)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		// Si no es error de secuencia, es error de BD
+		http.Error(w, "Failed to update display positions: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		http.Error(w, "Error encoding response: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Display positions updated successfully"})
 }
 
 // Secondary functions for handling optional form values and query parameters

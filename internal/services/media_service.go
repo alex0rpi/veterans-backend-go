@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"io"
 	"log"
@@ -27,10 +28,6 @@ type MediaService interface {
 		ctx context.Context,
 		listMediaRequest models.ListMediaRequest,
 	) ([]models.MediaItem, error)
-	GetAvailableDisplayPositions(
-		ctx context.Context,
-		request models.GetAvailDisplayPositionsRequest,
-	) (*models.GetAvailDisplayPositionsResponse, error)
 	DeleteImageById(
 		ctx context.Context,
 		id int,
@@ -40,6 +37,10 @@ type MediaService interface {
 		id int,
 		updateRequest models.UpdateMediaItemRequest,
 	) (*models.UpdatedMediaItem, error)
+	UpdateImageDisplayPositions(
+		ctx context.Context,
+		updatePositionsRequest models.UpdateDisplayPositionsRequest,
+	) error
 }
 
 // This struct is the blueprint containing the dependencies required for the media service to function.
@@ -219,31 +220,6 @@ func (s *mediaService) ListMedia(
 	return response, nil
 }
 
-func (s *mediaService) GetAvailableDisplayPositions(
-	ctx context.Context,
-	request models.GetAvailDisplayPositionsRequest,
-) (*models.GetAvailDisplayPositionsResponse, error) {
-	err := validateAvailDisplayPositionsRequest(request)
-	if err != nil {
-		return nil, err
-	}
-
-	used, err := s.repository.GetUsedDisplayPositions(
-		ctx,
-		request.MediaContext,
-		request.Season,
-		request.Category,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &models.GetAvailDisplayPositionsResponse{
-		NextAvailableDisplayPosition: nextDisplayPositionAfterMax(used),
-		UnusedDisplayPositions:       inferUnusedDisplayPositions(used),
-	}, nil
-}
-
 func (s *mediaService) DeleteImageById(
 	ctx context.Context,
 	id int,
@@ -268,6 +244,19 @@ func (s *mediaService) DeleteImageById(
 	return nil
 }
 
+func (s *mediaService) UpdateImageDisplayPositions(
+	ctx context.Context,
+	updatePositionsRequest models.UpdateDisplayPositionsRequest,
+) error {
+	// Validate position item list received
+	err := validateUpdatePositionSequence(updatePositionsRequest.NewPositions)
+	if err != nil {
+		return err
+	}
+	// Invoke repository method to update display positions
+	return s.repository.UpdateDisplayPositions(ctx, updatePositionsRequest.NewPositions)
+}
+
 func (s *mediaService) UpdateImageMetadata(
 	ctx context.Context,
 	id int,
@@ -283,6 +272,41 @@ func (s *mediaService) UpdateImageMetadata(
 	}
 
 	return s.repository.UpdateMedia(ctx, id, updateRequest)
+}
+
+func validateUpdatePositionSequence(positionItems []models.PositionItem) error {
+	if len(positionItems) == 0 {
+		return &PositionSequenceError{
+			Message:   "position items list cannot be empty",
+			ErrorType: "empty",
+		}
+	}
+	seenPositions := make(map[int]bool)
+
+	// Check no duplicate positions
+	for _, item := range positionItems {
+		if seenPositions[item.Position] {
+			return &PositionSequenceError{
+				Message:   fmt.Sprintf("duplicate position %d", item.Position),
+				ErrorType: "duplicate",
+				ErrorPos:  item.Position,
+			}
+		}
+		seenPositions[item.Position] = true
+	}
+
+	// Verify sequence is 1, 2, 3, ..., n without gaps
+	for i := 1; i <= len(positionItems); i++ {
+		if !seenPositions[i] {
+			return &PositionSequenceError{
+				Message:    fmt.Sprintf("position sequence has gaps, missing position %d", i),
+				ErrorType:  "gap",
+				MissingPos: i,
+			}
+		}
+	}
+
+	return nil
 }
 
 func validateListMediaRequest(request models.ListMediaRequest) error {
@@ -359,30 +383,6 @@ func validateUploadMetadata(request models.UploadMediaRequest) error {
 	}
 
 	switch request.MediaContext {
-	case string(constants.MediaContextSeason):
-		err := validateRequestForSeasonContext(request.Season, request.Category)
-		if err != nil {
-			return err
-		}
-
-	case string(constants.MediaContextHome), string(constants.MediaContextBoard), string(constants.MediaContextHistoricMember):
-		err := validateRequestForNonSeasonContext(request.Season, request.Category)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func validateAvailDisplayPositionsRequest(request models.GetAvailDisplayPositionsRequest) error {
-
-	mediaContext := request.MediaContext
-	if !isValidMediaContext(mediaContext) {
-		return ErrInvalidMediaContext
-	}
-
-	switch mediaContext {
 	case string(constants.MediaContextSeason):
 		err := validateRequestForSeasonContext(request.Season, request.Category)
 		if err != nil {

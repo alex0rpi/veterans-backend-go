@@ -57,18 +57,17 @@ func main() {
 	/* endpoint to delete a single media element (along with its variants) */
 	r.Delete("/media/{id}", mediaHandler.DeleteImageById)
 
-	/* endpoint to update a single media element */
-	r.Patch("/media/{id}", mediaHandler.UpdateImageMetadata)
-
 	/* endpoint to get a list of media items filtered by context and optionally by season and category query params */
 	r.Get("/media", mediaHandler.ListMedia)
 
-	// TODO *********************************************************************************
-	/* endpoint to get a single media element metadata by its ID */
+	/* endpoint to get a single image element metadata by its ID */
 	// r.Get("/media/{id}", mediaHandler.GetMediaById)
 
-	/* endpoint to get all available display positions for a given context and category */
-	r.Get("/media/available-display-positions", mediaHandler.GetAvailableDisplayPositions)
+	/* endpoint to update a single media element */
+	r.Patch("/media/{id}", mediaHandler.UpdateImageMetadata)
+
+	/* endpoint to update a images display position for a given context, season and category */
+	r.Patch("/media/display-positions", mediaHandler.UpdateImageDisplayPositions)
 
 	// DOCUMENTS ENDPOINTS //
 
