@@ -85,6 +85,49 @@ func (r *MediaRepository) Delete(
 	return err
 }
 
+func (r *MediaRepository) GetImageMetadataById(
+	ctx context.Context,
+	id int,
+) (*models.ImageMetadata, error) {
+	row := r.db.QueryRow(
+		ctx,
+		`
+		SELECT id, object_key, original_filename, file_description, mime_type, width, height, filesize, blur_key, small_key, medium_key, large_key, media_context, season, category, display_position, visible
+		FROM image_metadata
+		WHERE id = $1
+		`,
+		id,
+	)
+
+	var image models.ImageMetadata
+	err := row.Scan(
+		&image.ID,
+		&image.ObjectKey,
+		&image.ImageInfo.OriginalFilename,
+		&image.ImageInfo.FileDescription,
+		&image.ImageMetadata.MimeType,
+		&image.ImageMetadata.Width,
+		&image.ImageMetadata.Height,
+		&image.ImageMetadata.FileSize,
+		&image.URLs.Blur,
+		&image.URLs.Small,
+		&image.URLs.Medium,
+		&image.URLs.Large,
+		&image.ImageInfo.MediaContext,
+		&image.ImageInfo.Season,
+		&image.ImageInfo.Category,
+		&image.ImageInfo.DisplayPosition,
+		&image.ImageInfo.Visible,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("image with given id not found")
+		}
+		return nil, err
+	}
+	return &image, nil
+}
+
 func (r *MediaRepository) ListMedia(
 	ctx context.Context,
 	mediaContext string,
@@ -94,7 +137,7 @@ func (r *MediaRepository) ListMedia(
 	rows, err := r.db.Query(
 		ctx,
 		`
-		SELECT id, object_key, original_filename, file_description,
+		SELECT object_key, original_filename, file_description,
 			mime_type, width, height, filesize, blur_key,
 			small_key, medium_key, large_key, media_context,
 			season, category, display_position, visible, created_at, updated_at
@@ -115,7 +158,6 @@ func (r *MediaRepository) ListMedia(
 	for rows.Next() {
 		var media models.ProcessedMedia
 		if err := rows.Scan(
-			&media.ID,
 			&media.ObjectKey,
 			&media.OriginalFilename,
 			&media.FileDescription,

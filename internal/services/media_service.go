@@ -20,27 +20,12 @@ import (
 
 // This interface is a contract that defines the methods that any media service implementation must provide.
 type MediaService interface {
-	Upload(
-		ctx context.Context,
-		request models.UploadMediaRequest,
-	) (*models.ProcessedMedia, error)
-	ListMedia(
-		ctx context.Context,
-		listMediaRequest models.ListMediaRequest,
-	) ([]models.MediaItem, error)
-	DeleteImageById(
-		ctx context.Context,
-		id int,
-	) error
-	UpdateImageMetadata(
-		ctx context.Context,
-		id int,
-		updateRequest models.UpdateMediaItemRequest,
-	) (*models.UpdatedMediaItem, error)
-	UpdateImageDisplayPositions(
-		ctx context.Context,
-		updatePositionsRequest models.UpdateDisplayPositionsRequest,
-	) error
+	UploadImage(ctx context.Context, request models.UploadMediaRequest) (*models.ProcessedMedia, error)
+	GetImageMetadataById(ctx context.Context, id int) (*models.ImageMetadata, error)
+	ListMedia(ctx context.Context, listMediaRequest models.ListMediaRequest) ([]models.MediaItem, error)
+	DeleteImageById(ctx context.Context, id int) error
+	UpdateImageMetadata(ctx context.Context, id int, updateRequest models.UpdateMediaItemRequest) (*models.UpdatedMediaItem, error)
+	UpdateImageDisplayPositions(ctx context.Context, updatePositionsRequest models.UpdateDisplayPositionsRequest) error
 }
 
 // This struct is the blueprint containing the dependencies required for the media service to function.
@@ -71,7 +56,7 @@ var allowedImageMimeTypes = map[string]bool{
 }
 
 // The initial (s *mediaService) is a method receiver, which means that this function is associated with the mediaService struct, and therefore can access its fields and methods.
-func (s *mediaService) Upload(
+func (s *mediaService) UploadImage(
 	ctx context.Context,
 	request models.UploadMediaRequest,
 ) (processed *models.ProcessedMedia, err error) {
@@ -175,6 +160,17 @@ func (s *mediaService) Upload(
 
 }
 
+func (s *mediaService) GetImageMetadataById(ctx context.Context, id int) (*models.ImageMetadata, error) {
+	media, err := s.repository.GetImageMetadataById(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrMediaNotFound
+		}
+		return nil, err
+	}
+	return media, nil
+}
+
 func (s *mediaService) ListMedia(
 	ctx context.Context,
 	listMediaRequest models.ListMediaRequest,
@@ -198,18 +194,13 @@ func (s *mediaService) ListMedia(
 			visible = *media.Visible
 		}
 		item := models.MediaItem{
-			ID:               int(media.ID),
-			OriginalFilename: media.OriginalFilename,
-			FileDescription:  media.FileDescription,
-			Width:            media.Width,
-			Height:           media.Height,
-			MediaContext:     media.MediaContext,
-			Season:           media.Season,
-			Category:         media.Category,
-			DisplayPosition:  media.DisplayPosition,
-			Visible:          visible,
-			CreatedAt:        media.CreatedAt,
-			UpdatedAt:        media.UpdatedAt,
+			FileDescription: media.FileDescription,
+			Width:           media.Width,
+			Height:          media.Height,
+			Season:          media.Season,
+			Category:        media.Category,
+			DisplayPosition: media.DisplayPosition,
+			Visible:         visible,
 		}
 		item.URLs.Blur = s.publicBaseURL + "/" + media.BlurKey
 		item.URLs.Small = s.publicBaseURL + "/" + media.SmallKey

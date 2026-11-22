@@ -51,17 +51,18 @@ func main() {
 		}
 	})
 
+	//* Admin protected endpoints -------
+
+	// IMAGE ENDPOINTS //
+
 	/* endpoint to post a new media item (image) */
-	r.Post("/media", mediaHandler.Upload)
+	r.Post("/media", mediaHandler.UploadImage)
 
 	/* endpoint to delete a single media element (along with its variants) */
 	r.Delete("/media/{id}", mediaHandler.DeleteImageById)
 
-	/* endpoint to get a list of media items filtered by context and optionally by season and category query params */
-	r.Get("/media", mediaHandler.ListMedia)
-
 	/* endpoint to get a single image element metadata by its ID */
-	// r.Get("/media/{id}", mediaHandler.GetMediaById)
+	r.Get("/media/{id}", mediaHandler.GetImageMetadataById)
 
 	/* endpoint to update a single media element */
 	r.Patch("/media/{id}", mediaHandler.UpdateImageMetadata)
@@ -76,6 +77,13 @@ func main() {
 
 	/* endpoint to get a list of all documents metadata */
 	r.Get("/documents", documentHandler.List)
+
+	//* Media public endpoints -------
+
+	/* endpoint to get a list of media items filtered by context and optionally by season and category query params */
+	r.Get("/media", mediaHandler.ListMedia)
+
+	// Start the HTTP server
 
 	log.Printf("Server is UP and listening on port %s ...", os.Getenv("PORT"))
 	if err := http.ListenAndServe(":"+os.Getenv("PORT"), r); err != nil {

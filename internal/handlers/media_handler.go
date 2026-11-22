@@ -23,7 +23,7 @@ func NewMediaHandler(service services.MediaService) *MediaHandler {
 	}
 }
 
-func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
+func (h *MediaHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 
 	file, header, err := r.FormFile("image")
 	if err != nil {
@@ -66,7 +66,7 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		Visible:          getOptionalBoolFormValue(r, "visible"),
 	}
 
-	processedMedia, err := h.service.Upload(
+	processedMedia, err := h.service.UploadImage(
 		r.Context(),
 		uploadRequest,
 	)
@@ -111,6 +111,38 @@ func (h *MediaHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(processedMedia); err != nil {
+		http.Error(w, "Error encoding response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *MediaHandler) GetImageMetadataById(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		http.Error(w, "Missing media ID", http.StatusBadRequest)
+		return
+	}
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		http.Error(w, "Invalid media ID", http.StatusBadRequest)
+		return
+	}
+
+	metadata, err := h.service.GetImageMetadataById(
+		r.Context(),
+		idInt,
+	)
+	if err != nil {
+		if errors.Is(err, services.ErrMediaNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(metadata); err != nil {
 		http.Error(w, "Error encoding response: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
