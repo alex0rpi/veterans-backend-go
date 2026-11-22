@@ -65,7 +65,7 @@ func main() {
 	r.Get("/media/{id}", mediaHandler.GetImageMetadataById)
 
 	/* endpoint to update a single media element */
-	r.Patch("/media/{id}", mediaHandler.UpdateImageMetadata)
+	r.Patch("/media/{id}", mediaHandler.UpdateImage)
 
 	/* endpoint to update a images display position for a given context, season and category */
 	r.Patch("/media/display-positions", mediaHandler.UpdateImageDisplayPositions)

@@ -24,7 +24,7 @@ type MediaService interface {
 	GetImageMetadataById(ctx context.Context, id int) (*models.ImageMetadata, error)
 	ListMedia(ctx context.Context, listMediaRequest models.ListMediaRequest) ([]models.MediaItem, error)
 	DeleteImageById(ctx context.Context, id int) error
-	UpdateImageMetadata(ctx context.Context, id int, updateRequest models.UpdateMediaItemRequest) (*models.UpdatedMediaItem, error)
+	UpdateImage(ctx context.Context, id int, updateRequest models.UpdateMediaItemRequest) (*models.UpdatedMediaItem, error)
 	UpdateImageDisplayPositions(ctx context.Context, updatePositionsRequest models.UpdateDisplayPositionsRequest) error
 }
 
@@ -211,10 +211,7 @@ func (s *mediaService) ListMedia(
 	return response, nil
 }
 
-func (s *mediaService) DeleteImageById(
-	ctx context.Context,
-	id int,
-) error {
+func (s *mediaService) DeleteImageById(ctx context.Context, id int) error {
 	media, err := s.repository.GetImageByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -248,7 +245,7 @@ func (s *mediaService) UpdateImageDisplayPositions(
 	return s.repository.UpdateDisplayPositions(ctx, updatePositionsRequest.NewPositions)
 }
 
-func (s *mediaService) UpdateImageMetadata(
+func (s *mediaService) UpdateImage(
 	ctx context.Context,
 	id int,
 	updateRequest models.UpdateMediaItemRequest,

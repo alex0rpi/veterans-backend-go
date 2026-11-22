@@ -233,7 +233,7 @@ func (h *MediaHandler) DeleteImageById(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *MediaHandler) UpdateImageMetadata(w http.ResponseWriter, r *http.Request) {
+func (h *MediaHandler) UpdateImage(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	idInt, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -252,7 +252,7 @@ func (h *MediaHandler) UpdateImageMetadata(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	updatedItem, err := h.service.UpdateImageMetadata(
+	updatedItem, err := h.service.UpdateImage(
 		r.Context(),
 		idInt,
 		updateRequest,

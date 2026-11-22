@@ -239,7 +239,7 @@ func (r *MediaRepository) UpdateMedia(
 			visible = COALESCE($7, visible),
 			updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, original_filename, file_description, media_context, season, category, visible, updated_at`,
+		RETURNING original_filename, file_description, media_context, season, category, visible, updated_at`,
 		id,
 		updateData.OriginalFilename,
 		updateData.FileDescription,
@@ -325,10 +325,7 @@ func (r *MediaRepository) GetUsedDisplayPositions(ctx context.Context, mediaCont
 
 }
 
-func (r *MediaRepository) DeleteImage(
-	ctx context.Context,
-	id int,
-) error {
+func (r *MediaRepository) DeleteImage(ctx context.Context, id int) error {
 	_, err := r.db.Exec(
 		ctx,
 		"DELETE FROM image_metadata WHERE id = $1",
