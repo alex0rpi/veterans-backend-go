@@ -1,4 +1,4 @@
-package models
+package media
 
 type PositionItem struct {
 	ID       int `json:"id" validate:"required"`

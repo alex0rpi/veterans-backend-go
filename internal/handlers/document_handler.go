@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"veterans-go-chi-server/internal/models"
+	documentmodel "veterans-go-chi-server/internal/models/document"
 	"veterans-go-chi-server/internal/services"
 )
 
@@ -43,7 +43,7 @@ func (h *DocumentHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uploadRequest := models.UploadDocumentRequest{
+	uploadRequest := documentmodel.UploadDocumentRequest{
 		File:             file,
 		OriginalFilename: header.Filename,
 		FileSize:         header.Size,

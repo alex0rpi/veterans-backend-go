@@ -53,35 +53,25 @@ func main() {
 
 	//* Admin protected endpoints -------
 
-	// IMAGE ENDPOINTS //
+		// IMAGE ENDPOINTS //
+		/* endpoint to post a new media item (image) */
+		r.Post("/media", mediaHandler.UploadImage)
+		/* endpoint to delete a single media element (along with its variants) */
+		r.Delete("/media/{id}", mediaHandler.DeleteImageById)
+		/* endpoint to get a single image element metadata by its ID */
+		r.Get("/media/{id}", mediaHandler.GetImageMetadataById)
+		/* endpoint to update a single media element */
+		r.Patch("/media/{id}", mediaHandler.UpdateImage)
+		/* endpoint to update a images display position for a given context, season and category */
+		r.Patch("/media/display-positions", mediaHandler.UpdateImageDisplayPositions)
 
-	/* endpoint to post a new media item (image) */
-	r.Post("/media", mediaHandler.UploadImage)
+		// DOCUMENTS ENDPOINTS //
+		/* endpoint to post a new document */
+		r.Post("/documents", documentHandler.Upload)
+		/* endpoint to get a list of all documents metadata */
+		r.Get("/documents", documentHandler.List)
 
-	/* endpoint to delete a single media element (along with its variants) */
-	r.Delete("/media/{id}", mediaHandler.DeleteImageById)
-
-	/* endpoint to get a single image element metadata by its ID */
-	r.Get("/media/{id}", mediaHandler.GetImageMetadataById)
-
-	/* endpoint to update a single media element */
-	r.Patch("/media/{id}", mediaHandler.UpdateImage)
-
-	/* endpoint to update a images display position for a given context, season and category */
-	r.Patch("/media/display-positions", mediaHandler.UpdateImageDisplayPositions)
-
-	// DOCUMENTS ENDPOINTS //
-
-	/* endpoint to post a new document */
-	r.Post("/documents", documentHandler.Upload)
-
-	/* endpoint to get a list of all documents metadata */
-	r.Get("/documents", documentHandler.List)
-
-	//* Media public endpoints -------
-
-	/* endpoint to get a list of media items filtered by context and optionally by season and category query params */
-	r.Get("/media", mediaHandler.ListMedia)
+	})
 
 	// Start the HTTP server
 

@@ -1,4 +1,4 @@
-package models
+package media
 
 import "mime/multipart"
 

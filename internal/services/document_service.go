@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"veterans-go-chi-server/internal/models"
+	documentmodel "veterans-go-chi-server/internal/models/document"
 	"veterans-go-chi-server/internal/repositories"
 	"veterans-go-chi-server/internal/storage"
 	"veterans-go-chi-server/internal/utils"
@@ -21,11 +21,11 @@ var allowedDocumentMimeTypes = map[string]bool{
 type DocumentService interface {
 	Upload(
 		ctx context.Context,
-		request models.UploadDocumentRequest,
-	) (*models.DocumentMetadata, error)
+		request documentmodel.UploadDocumentRequest,
+	) (*documentmodel.DocumentMetadata, error)
 	List(
 		ctx context.Context,
-	) ([]models.DocumentResponse, error)
+	) ([]documentmodel.DocumentResponse, error)
 }
 
 type documentService struct {
@@ -48,8 +48,8 @@ func NewDocumentService(
 
 func (s *documentService) Upload(
 	ctx context.Context,
-	request models.UploadDocumentRequest,
-) (document *models.DocumentMetadata, err error) {
+	request documentmodel.UploadDocumentRequest,
+) (document *documentmodel.DocumentMetadata, err error) {
 
 	if strings.TrimSpace(request.Title) == "" {
 		return nil, ErrDocumentTitleRequired
@@ -84,7 +84,7 @@ func (s *documentService) Upload(
 	}
 	saved = true
 
-	document = &models.DocumentMetadata{
+	document = &documentmodel.DocumentMetadata{
 		ObjectKey:        objectKey,
 		OriginalFilename: request.OriginalFilename,
 		MimeType:         mimeType,
@@ -102,16 +102,16 @@ func (s *documentService) Upload(
 
 func (s *documentService) List(
 	ctx context.Context,
-) ([]models.DocumentResponse, error) {
+) ([]documentmodel.DocumentResponse, error) {
 	documents, err := s.repository.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	response := make(
-		[]models.DocumentResponse, 0, len(documents))
+		[]documentmodel.DocumentResponse, 0, len(documents))
 	for _, document := range documents {
-		response = append(response, models.DocumentResponse{
+		response = append(response, documentmodel.DocumentResponse{
 			Title:       document.Title,
 			Description: document.Description,
 			URL:         s.publicBaseURL + "/" + document.ObjectKey,
@@ -123,7 +123,7 @@ func (s *documentService) List(
 	return response, nil
 }
 
-func performDocumentValidations(request models.UploadDocumentRequest) (string, error) {
+func performDocumentValidations(request documentmodel.UploadDocumentRequest) (string, error) {
 	if err := validateFileSize(request.FileSize, MaxDocumentFileSize); err != nil {
 		return "", err
 	}

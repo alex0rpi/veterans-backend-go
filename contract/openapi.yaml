@@ -5,10 +5,12 @@ info:
   description: API para gestionar imágenes y documentos del Veterans Hoquei.
 
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:8000
+    description: Servidor local con el puerto de ejemplo; PORT es configurable.
 
 tags:
   - name: Health
+  - name: Auth
   - name: Media
   - name: Documents
 
@@ -16,6 +18,7 @@ paths:
   /health:
     get:
       tags: [Health]
+      operationId: health
       summary: Comprueba que la API está activa
       responses:
         '200':
@@ -24,142 +27,465 @@ paths:
             text/plain:
               schema:
                 type: string
+              example: Bon dia desde Go Chi!
 
-  /media:
+  /auth/login:
     post:
-      tags: [Media]
-      operationId: uploadMedia
-      summary: Sube una imagen
+      tags: [Auth]
+      operationId: login
+      summary: Obtiene un token de acceso y uno de renovación
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
               type: object
-              required:
-                - image
-                - media_context
-                - display_position
+              required: [username, password]
               properties:
-                image:
+                username:
                   type: string
-                  format: binary
-                media_context:
+                password:
                   type: string
-                  enum: [season, home, board, historic]
-                display_position:
-                  type: integer
-                file_description:
-                  type: string
-                  maxLength: 100
-                season:
-                  type: string
-                category:
-                  type: string
-                  enum: [pro, bases, vets]
-                visible:
-                  type: boolean
-                  default: true
+                  format: password
       responses:
         '200':
-          description: Imagen procesada correctamente
+          description: Tokens generados; el token de acceso caduca en 900 segundos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
         '400':
-          description: Datos inválidos
-        '415':
-          description: Tipo de imagen no soportado
-        '413':
-          description: Archivo demasiado grande
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Obtiene un nuevo token de acceso usando un token de renovación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Nuevo token de acceso; el token de renovación no cambia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /media:
     get:
       tags: [Media]
       operationId: listMedia
-      summary: Lista imágenes
+      summary: Lista imágenes por contexto
+      description: >
+        Para season se requiere la temporada y la categoría es opcional.
+        Para los demás contextos no se admiten season ni category.
+        Actualmente la lista incluye imágenes con visible tanto true como false.
       parameters:
         - name: media_context
           in: query
           required: true
           schema:
-            type: string
-            enum: [season, home, board, historic]
+            $ref: '#/components/schemas/MediaContext'
         - name: season
           in: query
+          description: Temporada en formato YYZZ, con años consecutivos, por ejemplo 2425.
           schema:
             type: string
+        - name: category
+          in: query
+          schema:
+            $ref: '#/components/schemas/Category'
       responses:
         '200':
-          description: Lista de imágenes
+          description: Lista de imágenes y total, ordenadas por posición.
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ListMediaResponse'
-
-  /media/{id}:
-    delete:
-      tags: [Media]
-      operationId: deleteMedia
-      summary: Elimina una imagen
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '204':
-          description: Imagen eliminada
-        '404':
-          description: Imagen no encontrada
-
-  /documents:
+                $ref: '#/components/schemas/ListMediaResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          description: Error interno o categoría inválida o no permitida.
+          content:
+            text/plain:
+              schema:
+                type: string
     post:
-      tags: [Documents]
-      operationId: uploadDocument
-      summary: Sube un documento
+      tags: [Media]
+      operationId: uploadMedia
+      summary: Sube una imagen
+      description: >
+        Se aceptan imágenes JPEG o PNG de hasta 15 MiB. Para season son
+        obligatorios season y category; en los demás contextos no se admiten.
+        La posición debe ser un hueco disponible o la siguiente después de la máxima.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
-              required:
-                - document
-                - document_title
+              required: [image, media_context, display_position]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                media_context:
+                  $ref: '#/components/schemas/MediaContext'
+                display_position:
+                  type: integer
+                file_description:
+                  type: string
+                  description: Máximo 100 bytes en UTF-8.
+                season:
+                  type: string
+                  description: Temporada en formato YYZZ, con años consecutivos.
+                category:
+                  $ref: '#/components/schemas/Category'
+                visible:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Imagen procesada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessedMedia'
+        '400':
+          description: Datos inválidos o posición no disponible.
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisplayPositionError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/FileTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMedia'
+        '422':
+          description: Las dimensiones de la imagen están fuera del rango permitido.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Error interno o parámetros requeridos o no permitidos para el contexto.
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /media/{id}:
+    parameters:
+      - $ref: '#/components/parameters/MediaId'
+    get:
+      tags: [Media]
+      operationId: getImageMetadata
+      summary: Obtiene los metadatos de una imagen
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Metadatos de la imagen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageMetadata'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Error interno; actualmente incluye el caso de imagen inexistente.
+          content:
+            text/plain:
+              schema:
+                type: string
+    patch:
+      tags: [Media]
+      operationId: updateImage
+      summary: Actualiza metadatos de una imagen
+      description: >
+        Todos los campos son opcionales. Un campo omitido o null conserva el
+        valor anterior. Si se envía media_context, se validan season y category
+        para el nuevo contexto. display_position se actualiza por separado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMediaRequest'
+      responses:
+        '200':
+          description: Metadatos actualizados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdatedMediaItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Error interno, validación de contexto fallida o imagen inexistente.
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      tags: [Media]
+      operationId: deleteMedia
+      summary: Elimina una imagen
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Imagen eliminada.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /media/display-positions:
+    patch:
+      tags: [Media]
+      operationId: updateImageDisplayPositions
+      summary: Actualiza posiciones de imágenes
+      description: >
+        Las posiciones deben formar la secuencia 1 a N sin duplicados, aunque
+        los elementos pueden enviarse en cualquier orden.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_display_position_items]
+              properties:
+                new_display_position_items:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/PositionItem'
+      responses:
+        '200':
+          description: Posiciones actualizadas.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Display positions updated successfully
+        '400':
+          description: JSON inválido o secuencia inválida.
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionSequenceError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          description: Error al actualizar, incluido un identificador inexistente.
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /documents:
+    post:
+      tags: [Documents]
+      operationId: uploadDocument
+      summary: Sube un documento PDF
+      description: Tamaño máximo del archivo 100 MiB.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [document, document_title]
               properties:
                 document:
                   type: string
                   format: binary
                 document_title:
                   type: string
+                  description: Debe contener caracteres distintos de espacios.
                 document_description:
                   type: string
-                  maxLength: 100
+                  description: Máximo 100 bytes en UTF-8.
       responses:
         '200':
-          description: Documento subido correctamente
-
+          description: Documento subido correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentMetadata'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/FileTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMedia'
+        '500':
+          $ref: '#/components/responses/InternalError'
     get:
       tags: [Documents]
       operationId: listDocuments
       summary: Lista documentos
+      security:
+        - bearerAuth: []
       responses:
         '200':
-          description: Lista de documentos
+          description: Lista de documentos.
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ListDocumentsResponse'
+                  $ref: '#/components/schemas/DocumentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token de acceso obtenido mediante login o refresh.
+  parameters:
+    MediaId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    BadRequest:
+      description: Solicitud inválida.
+      content:
+        text/plain:
+          schema:
+            type: string
+    Unauthorized:
+      description: Credenciales o token inválidos, ausentes o caducados.
+      content:
+        text/plain:
+          schema:
+            type: string
+    NotFound:
+      description: Imagen no encontrada.
+      content:
+        text/plain:
+          schema:
+            type: string
+    FileTooLarge:
+      description: Archivo demasiado grande.
+      content:
+        text/plain:
+          schema:
+            type: string
+    UnsupportedMedia:
+      description: Tipo de archivo no soportado.
+      content:
+        text/plain:
+          schema:
+            type: string
+    InternalError:
+      description: Error interno.
+      content:
+        text/plain:
+          schema:
+            type: string
   schemas:
-    ListMediaResponse:
+    MediaContext:
+      type: string
+      enum: [season, home, board, historic_member]
+    Category:
+      type: string
+      enum: [pro, bases, vets]
+    LoginResponse:
       type: object
+      required: [access_token, refresh_token, expires_in]
       properties:
-        original_filename:
+        access_token:
           type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          format: int64
+          description: Duración del token de acceso en segundos.
+    AccessTokenResponse:
+      type: object
+      required: [access_token, expires_in]
+      properties:
+        access_token:
+          type: string
+        expires_in:
+          type: integer
+          description: Duración del token de acceso en segundos.
+    ImageURLs:
+      type: object
+      required: [blur_url, small_url, medium_url, large_url]
+      properties:
+        blur_url:
+          type: string
+        small_url:
+          type: string
+        medium_url:
+          type: string
+        large_url:
+          type: string
+    MediaItem:
+      type: object
+      required: [file_description, width, height, display_position, visible, urls]
+      properties:
         file_description:
           type: string
           nullable: true
@@ -167,40 +493,240 @@ components:
           type: integer
         height:
           type: integer
-        blur_url:
+        season:
           type: string
-          format: uri
-        small_url:
+        category:
           type: string
-          format: uri
-        medium_url:
+        display_position:
+          type: integer
+        visible:
+          type: boolean
+        urls:
+          $ref: '#/components/schemas/ImageURLs'
+    ListMediaResponse:
+      type: object
+      required: [media_items, total]
+      properties:
+        media_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaItem'
+        total:
+          type: integer
+    ProcessedMedia:
+      type: object
+      required: [ID, object_key, original_filename, file_description, mime_type, file_size, width, height, blur_key, small_key, medium_key, large_key, media_context, display_position, visible, created_at, updated_at]
+      properties:
+        ID:
+          type: integer
+          format: int64
+        object_key:
           type: string
-          format: uri
-        large_url:
+        original_filename:
           type: string
-          format: uri
+        file_description:
+          type: string
+          nullable: true
+        mime_type:
+          type: string
+        file_size:
+          type: integer
+          format: int64
+        width:
+          type: integer
+        height:
+          type: integer
+        blur_key:
+          type: string
+        small_key:
+          type: string
+        medium_key:
+          type: string
+        large_key:
+          type: string
         media_context:
           type: string
+        season:
+          type: string
+        category:
+          type: string
+        display_position:
+          type: integer
+        visible:
+          type: boolean
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+    ImageMetadata:
+      type: object
+      required: [id, object_key, image_info, image_metadata, urls]
+      properties:
+        id:
+          type: integer
+          format: int64
+        object_key:
+          type: string
+        image_info:
+          type: object
+          required: [file_description, original_filename, media_context, season, category, display_position, visible]
+          properties:
+            file_description:
+              type: string
+              nullable: true
+            original_filename:
+              type: string
+            media_context:
+              type: string
+            season:
+              type: string
+              nullable: true
+            category:
+              type: string
+              nullable: true
+            display_position:
+              type: integer
+              nullable: true
+            visible:
+              type: boolean
+        image_metadata:
+          type: object
+          required: [mime_type, width, height, file_size, created_at, updated_at]
+          properties:
+            mime_type:
+              type: string
+            width:
+              type: integer
+            height:
+              type: integer
+            file_size:
+              type: integer
+              format: int64
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+        urls:
+          description: Actualmente contiene claves de almacenamiento, no URLs completas.
+          allOf:
+            - $ref: '#/components/schemas/ImageURLs'
+    UpdateMediaRequest:
+      type: object
+      properties:
+        original_filename:
+          type: string
+          nullable: true
+        file_description:
+          type: string
+          nullable: true
+        media_context:
+          type: string
+          nullable: true
         season:
           type: string
           nullable: true
         category:
           type: string
           nullable: true
-        display_position:
-          type: integer
-
-    ListDocumentsResponse:
+        visible:
+          type: boolean
+          nullable: true
+    UpdatedMediaItem:
       type: object
+      required: [original_filename, file_description, media_context, visible, updated_at]
+      properties:
+        original_filename:
+          type: string
+        file_description:
+          type: string
+          nullable: true
+        media_context:
+          type: string
+        season:
+          type: string
+        category:
+          type: string
+        visible:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+    PositionItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        position:
+          type: integer
+    DisplayPositionError:
+      type: object
+      required: [error, available_inner_positions, next_position_after_last]
+      properties:
+        error:
+          type: string
+        available_inner_positions:
+          type: array
+          items:
+            type: integer
+        next_position_after_last:
+          type: integer
+    PositionSequenceError:
+      type: object
+      required: [error, error_type]
+      properties:
+        error:
+          type: string
+        error_type:
+          type: string
+          enum: [empty, duplicate, gap]
+        duplicate_position:
+          type: integer
+        missing_position:
+          type: integer
+    DocumentMetadata:
+      type: object
+      required: [ID, ObjectKey, OriginalFilename, MimeType, FileSize, Title, Description, CreatedAt, UpdatedAt]
+      properties:
+        ID:
+          type: integer
+          format: int64
+        ObjectKey:
+          type: string
+        OriginalFilename:
+          type: string
+        MimeType:
+          type: string
+        FileSize:
+          type: integer
+          format: int64
+        Title:
+          type: string
+        Description:
+          type: string
+          nullable: true
+        CreatedAt:
+          type: string
+          format: date-time
+        UpdatedAt:
+          type: string
+          format: date-time
+    DocumentResponse:
+      type: object
+      required: [title, url, mime_type, filesize]
       properties:
         title:
           type: string
         description:
           type: string
-          nullable: true
         url:
           type: string
-          format: uri
         mime_type:
           type: string
         filesize:

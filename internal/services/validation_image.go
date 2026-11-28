@@ -1,13 +1,13 @@
 package services
 
 import (
-	"veterans-go-chi-server/internal/models"
+	mediamodel "veterans-go-chi-server/internal/models/media"
 	"veterans-go-chi-server/internal/utils"
 )
 
 // Shared validation helpers reused by mediaService and documentService.
 
-func validateImageProperties(request models.UploadMediaRequest) (string, int, int, error) {
+func validateImageProperties(request mediamodel.UploadMediaRequest) (string, int, int, error) {
 	if err := validateFileSize(request.FileSize, maxImageFileSize); err != nil {
 		return "", 0, 0, err
 	}

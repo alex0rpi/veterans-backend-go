@@ -1,4 +1,4 @@
-package models
+package media
 
 type ListMediaRequest struct {
 	MediaContext string  `json:"media_context,omitempty"`

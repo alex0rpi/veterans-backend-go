@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"veterans-go-chi-server/internal/models"
+	mediamodel "veterans-go-chi-server/internal/models/media"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -23,7 +23,7 @@ func NewMediaRepository(db *pgxpool.Pool) *MediaRepository {
 
 func (r *MediaRepository) Create(
 	ctx context.Context,
-	image *models.ProcessedMedia,
+	image *mediamodel.ProcessedMedia,
 ) error {
 	// _, err := r.db.Exec(
 	return r.db.QueryRow(
@@ -88,7 +88,7 @@ func (r *MediaRepository) Delete(
 func (r *MediaRepository) GetImageMetadataById(
 	ctx context.Context,
 	id int,
-) (*models.ImageMetadata, error) {
+) (*mediamodel.ImageMetadata, error) {
 	row := r.db.QueryRow(
 		ctx,
 		`
@@ -99,7 +99,7 @@ func (r *MediaRepository) GetImageMetadataById(
 		id,
 	)
 
-	var image models.ImageMetadata
+	var image mediamodel.ImageMetadata
 	err := row.Scan(
 		&image.ID,
 		&image.ObjectKey,
@@ -133,7 +133,7 @@ func (r *MediaRepository) ListMedia(
 	mediaContext string,
 	season *string,
 	category *string,
-) ([]models.ProcessedMedia, error) {
+) ([]mediamodel.ProcessedMedia, error) {
 	rows, err := r.db.Query(
 		ctx,
 		`
@@ -154,9 +154,9 @@ func (r *MediaRepository) ListMedia(
 	}
 	defer rows.Close()
 
-	var mediaList []models.ProcessedMedia
+	var mediaList []mediamodel.ProcessedMedia
 	for rows.Next() {
-		var media models.ProcessedMedia
+		var media mediamodel.ProcessedMedia
 		if err := rows.Scan(
 			&media.ObjectKey,
 			&media.OriginalFilename,
@@ -191,7 +191,7 @@ func (r *MediaRepository) ListMedia(
 
 func (r *MediaRepository) UpdateDisplayPositions(
 	ctx context.Context,
-	newPositions []models.PositionItem,
+	newPositions []mediamodel.PositionItem,
 ) error {
 	// Usar batch para actualizar múltiples registros de forma eficiente
 	batch := &pgx.Batch{}
@@ -226,8 +226,8 @@ func (r *MediaRepository) UpdateDisplayPositions(
 func (r *MediaRepository) UpdateMedia(
 	ctx context.Context,
 	id int,
-	updateData models.UpdateMediaItemRequest,
-) (*models.UpdatedMediaItem, error) {
+	updateData mediamodel.UpdateMediaItemRequest,
+) (*mediamodel.UpdatedMediaItem, error) {
 	row := r.db.QueryRow(
 		ctx,
 		`UPDATE image_metadata
@@ -248,7 +248,7 @@ func (r *MediaRepository) UpdateMedia(
 		updateData.Category,
 		updateData.Visible,
 	)
-	var updated models.UpdatedMediaItem
+	var updated mediamodel.UpdatedMediaItem
 	err := row.Scan(
 		&updated.OriginalFilename,
 		&updated.FileDescription,
@@ -264,7 +264,7 @@ func (r *MediaRepository) UpdateMedia(
 	return &updated, nil
 }
 
-func (r *MediaRepository) GetImageByID(ctx context.Context, id int) (*models.ProcessedMedia, error) {
+func (r *MediaRepository) GetImageByID(ctx context.Context, id int) (*mediamodel.ProcessedMedia, error) {
 	row := r.db.QueryRow(
 		ctx,
 		`
@@ -275,7 +275,7 @@ func (r *MediaRepository) GetImageByID(ctx context.Context, id int) (*models.Pro
 		id,
 	)
 
-	var media models.ProcessedMedia
+	var media mediamodel.ProcessedMedia
 	if err := row.Scan(
 		&media.ID,
 		&media.ObjectKey,

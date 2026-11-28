@@ -10,7 +10,7 @@ import (
 	"log"
 
 	"veterans-go-chi-server/internal/constants"
-	"veterans-go-chi-server/internal/models"
+	mediamodel "veterans-go-chi-server/internal/models/media"
 	"veterans-go-chi-server/internal/repositories"
 	"veterans-go-chi-server/internal/storage"
 	"veterans-go-chi-server/internal/utils"
@@ -20,12 +20,12 @@ import (
 
 // This interface is a contract that defines the methods that any media service implementation must provide.
 type MediaService interface {
-	UploadImage(ctx context.Context, request models.UploadMediaRequest) (*models.ProcessedMedia, error)
-	GetImageMetadataById(ctx context.Context, id int) (*models.ImageMetadata, error)
-	ListMedia(ctx context.Context, listMediaRequest models.ListMediaRequest) ([]models.MediaItem, error)
+	UploadImage(ctx context.Context, request mediamodel.UploadMediaRequest) (*mediamodel.ProcessedMedia, error)
+	GetImageMetadataById(ctx context.Context, id int) (*mediamodel.ImageMetadata, error)
+	ListMedia(ctx context.Context, listMediaRequest mediamodel.ListMediaRequest) ([]mediamodel.MediaItem, error)
 	DeleteImageById(ctx context.Context, id int) error
-	UpdateImage(ctx context.Context, id int, updateRequest models.UpdateMediaItemRequest) (*models.UpdatedMediaItem, error)
-	UpdateImageDisplayPositions(ctx context.Context, updatePositionsRequest models.UpdateDisplayPositionsRequest) error
+	UpdateImage(ctx context.Context, id int, updateRequest mediamodel.UpdateMediaItemRequest) (*mediamodel.UpdatedMediaItem, error)
+	UpdateImageDisplayPositions(ctx context.Context, updatePositionsRequest mediamodel.UpdateDisplayPositionsRequest) error
 }
 
 // This struct is the blueprint containing the dependencies required for the media service to function.
@@ -58,8 +58,8 @@ var allowedImageMimeTypes = map[string]bool{
 // The initial (s *mediaService) is a method receiver, which means that this function is associated with the mediaService struct, and therefore can access its fields and methods.
 func (s *mediaService) UploadImage(
 	ctx context.Context,
-	request models.UploadMediaRequest,
-) (processed *models.ProcessedMedia, err error) {
+	request mediamodel.UploadMediaRequest,
+) (processed *mediamodel.ProcessedMedia, err error) {
 
 	if err := validateUploadMetadata(request); err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func (s *mediaService) UploadImage(
 		variantKeys[variant.Name] = variantKey
 	}
 
-	processed = &models.ProcessedMedia{
+	processed = &mediamodel.ProcessedMedia{
 		ObjectKey:        objectKey,
 		OriginalFilename: request.OriginalFilename,
 		FileDescription:  request.FileDescription,
@@ -160,7 +160,7 @@ func (s *mediaService) UploadImage(
 
 }
 
-func (s *mediaService) GetImageMetadataById(ctx context.Context, id int) (*models.ImageMetadata, error) {
+func (s *mediaService) GetImageMetadataById(ctx context.Context, id int) (*mediamodel.ImageMetadata, error) {
 	media, err := s.repository.GetImageMetadataById(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -173,8 +173,8 @@ func (s *mediaService) GetImageMetadataById(ctx context.Context, id int) (*model
 
 func (s *mediaService) ListMedia(
 	ctx context.Context,
-	listMediaRequest models.ListMediaRequest,
-) ([]models.MediaItem, error) {
+	listMediaRequest mediamodel.ListMediaRequest,
+) ([]mediamodel.MediaItem, error) {
 	if err := validateListMediaRequest(listMediaRequest); err != nil {
 		return nil, err
 	}
@@ -187,13 +187,13 @@ func (s *mediaService) ListMedia(
 	if err != nil {
 		return nil, err
 	}
-	response := make([]models.MediaItem, 0, len(processedMedia))
+	response := make([]mediamodel.MediaItem, 0, len(processedMedia))
 	for _, media := range processedMedia {
 		visible := true
 		if media.Visible != nil {
 			visible = *media.Visible
 		}
-		item := models.MediaItem{
+		item := mediamodel.MediaItem{
 			FileDescription: media.FileDescription,
 			Width:           media.Width,
 			Height:          media.Height,
@@ -234,7 +234,7 @@ func (s *mediaService) DeleteImageById(ctx context.Context, id int) error {
 
 func (s *mediaService) UpdateImageDisplayPositions(
 	ctx context.Context,
-	updatePositionsRequest models.UpdateDisplayPositionsRequest,
+	updatePositionsRequest mediamodel.UpdateDisplayPositionsRequest,
 ) error {
 	// Validate position item list received
 	err := validateUpdatePositionSequence(updatePositionsRequest.NewPositions)
@@ -248,8 +248,8 @@ func (s *mediaService) UpdateImageDisplayPositions(
 func (s *mediaService) UpdateImage(
 	ctx context.Context,
 	id int,
-	updateRequest models.UpdateMediaItemRequest,
-) (*models.UpdatedMediaItem, error) {
+	updateRequest mediamodel.UpdateMediaItemRequest,
+) (*mediamodel.UpdatedMediaItem, error) {
 
 	// Validar mediaContext y parámetros asociados si se proporciona
 	if updateRequest.MediaContext != nil {
@@ -262,7 +262,7 @@ func (s *mediaService) UpdateImage(
 	return s.repository.UpdateMedia(ctx, id, updateRequest)
 }
 
-func validateUpdatePositionSequence(positionItems []models.PositionItem) error {
+func validateUpdatePositionSequence(positionItems []mediamodel.PositionItem) error {
 	if len(positionItems) == 0 {
 		return &PositionSequenceError{
 			Message:   "position items list cannot be empty",
@@ -297,7 +297,7 @@ func validateUpdatePositionSequence(positionItems []models.PositionItem) error {
 	return nil
 }
 
-func validateListMediaRequest(request models.ListMediaRequest) error {
+func validateListMediaRequest(request mediamodel.ListMediaRequest) error {
 
 	if !isValidMediaContext(request.MediaContext) {
 		return ErrInvalidMediaContext
@@ -365,7 +365,7 @@ func (s *mediaService) validateDisplayPosition(
 	return nil
 }
 
-func validateUploadMetadata(request models.UploadMediaRequest) error {
+func validateUploadMetadata(request mediamodel.UploadMediaRequest) error {
 	if !isValidMediaContext(request.MediaContext) {
 		return ErrInvalidMediaContext
 	}

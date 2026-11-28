@@ -1,4 +1,4 @@
-package models
+package document
 
 type DocumentResponse struct {
 	Title       string  `json:"title"`

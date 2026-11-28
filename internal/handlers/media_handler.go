@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"veterans-go-chi-server/internal/models"
+	mediamodel "veterans-go-chi-server/internal/models/media"
 	"veterans-go-chi-server/internal/services"
 
 	"github.com/go-chi/chi/v5"
@@ -54,7 +54,7 @@ func (h *MediaHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uploadRequest := models.UploadMediaRequest{
+	uploadRequest := mediamodel.UploadMediaRequest{
 		File:             file,
 		OriginalFilename: header.Filename,
 		FileSize:         header.Size,
@@ -162,7 +162,7 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 		category = &categoryParam
 	}
 
-	listMediaRequest := models.ListMediaRequest{
+	listMediaRequest := mediamodel.ListMediaRequest{
 		MediaContext: r.URL.Query().Get("media_context"),
 		Season:       season,
 		Category:     category,
@@ -193,7 +193,7 @@ func (h *MediaHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := models.ListMediaResponse{
+	response := mediamodel.ListMediaResponse{
 		MediaItems: mediaList,
 		Total:      len(mediaList),
 	}
@@ -242,7 +242,7 @@ func (h *MediaHandler) UpdateImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse JSON body
-	var updateRequest models.UpdateMediaItemRequest
+	var updateRequest mediamodel.UpdateMediaItemRequest
 	if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
 		http.Error(
 			w,
@@ -273,7 +273,7 @@ func (h *MediaHandler) UpdateImage(w http.ResponseWriter, r *http.Request) {
 
 func (h *MediaHandler) UpdateImageDisplayPositions(w http.ResponseWriter, r *http.Request) {
 	// Parse JSON body
-	var updatePositionsRequest models.UpdateDisplayPositionsRequest
+	var updatePositionsRequest mediamodel.UpdateDisplayPositionsRequest
 	if err := json.NewDecoder(r.Body).Decode(&updatePositionsRequest); err != nil {
 		http.Error(
 			w,

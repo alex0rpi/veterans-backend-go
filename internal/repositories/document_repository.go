@@ -2,7 +2,7 @@ package repositories
 
 import (
 	"context"
-	"veterans-go-chi-server/internal/models"
+	documentmodel "veterans-go-chi-server/internal/models/document"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -19,7 +19,7 @@ func NewDocumentRepository(db *pgxpool.Pool) *DocumentRepository {
 
 func (r *DocumentRepository) Create(
 	ctx context.Context,
-	document *models.DocumentMetadata,
+	document *documentmodel.DocumentMetadata,
 ) error {
 	return r.db.QueryRow(
 		ctx,
@@ -46,7 +46,7 @@ func (r *DocumentRepository) Create(
 
 func (r *DocumentRepository) List(
 	ctx context.Context,
-) ([]*models.DocumentMetadata, error) {
+) ([]*documentmodel.DocumentMetadata, error) {
 	rows, err := r.db.Query(
 		ctx,
 		"SELECT id, object_key, original_filename, mime_type, title, description, filesize, created_at, updated_at FROM document_metadata ORDER BY created_at",
@@ -56,9 +56,9 @@ func (r *DocumentRepository) List(
 	}
 	defer rows.Close()
 
-	documents := make([]*models.DocumentMetadata, 0)
+	documents := make([]*documentmodel.DocumentMetadata, 0)
 	for rows.Next() {
-		document := &models.DocumentMetadata{}
+		document := &documentmodel.DocumentMetadata{}
 		if err := rows.Scan(
 			&document.ID,
 			&document.ObjectKey,

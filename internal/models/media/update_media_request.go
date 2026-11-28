@@ -1,4 +1,4 @@
-package models
+package media
 
 // Individual image item
 type UpdateMediaItemRequest struct {
