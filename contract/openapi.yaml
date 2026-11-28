@@ -61,35 +61,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /auth/refresh:
-    post:
-      tags: [Auth]
-      operationId: refreshToken
-      summary: Obtiene un nuevo token de acceso usando un token de renovación
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [refresh_token]
-              properties:
-                refresh_token:
-                  type: string
-      responses:
-        '200':
-          description: Nuevo token de acceso; el token de renovación no cambia.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AccessTokenResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
   /media:
     get:
       tags: [Media]
@@ -397,7 +368,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Token de acceso obtenido mediante login o refresh.
+      description: Token de acceso obtenido mediante login.
   parameters:
     MediaId:
       name: id
@@ -451,11 +422,9 @@ components:
       enum: [pro, bases, vets]
     LoginResponse:
       type: object
-      required: [access_token, refresh_token, expires_in]
+      required: [access_token, expires_in]
       properties:
         access_token:
-          type: string
-        refresh_token:
           type: string
         expires_in:
           type: integer
@@ -515,7 +484,26 @@ components:
           type: integer
     ProcessedMedia:
       type: object
-      required: [ID, object_key, original_filename, file_description, mime_type, file_size, width, height, blur_key, small_key, medium_key, large_key, media_context, display_position, visible, created_at, updated_at]
+      required:
+        [
+          ID,
+          object_key,
+          original_filename,
+          file_description,
+          mime_type,
+          file_size,
+          width,
+          height,
+          blur_key,
+          small_key,
+          medium_key,
+          large_key,
+          media_context,
+          display_position,
+          visible,
+          created_at,
+          updated_at,
+        ]
       properties:
         ID:
           type: integer
@@ -573,7 +561,8 @@ components:
           type: string
         image_info:
           type: object
-          required: [file_description, original_filename, media_context, season, category, display_position, visible]
+          required:
+            [file_description, original_filename, media_context, season, category, display_position, visible]
           properties:
             file_description:
               type: string
@@ -692,7 +681,8 @@ components:
           type: integer
     DocumentMetadata:
       type: object
-      required: [ID, ObjectKey, OriginalFilename, MimeType, FileSize, Title, Description, CreatedAt, UpdatedAt]
+      required:
+        [ID, ObjectKey, OriginalFilename, MimeType, FileSize, Title, Description, CreatedAt, UpdatedAt]
       properties:
         ID:
           type: integer

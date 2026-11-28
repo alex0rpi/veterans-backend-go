@@ -12,6 +12,8 @@ GOOSE_DIR := migrations
         local-migrate-up local-migrate-down local-migrate-status
 
 #! Go commands
+# Careful! In local dev, if a .env variable contains $, makefile may interpret it incorrectly. Use $$ to escape $ in Makefile commands.
+# Or, use simple -env values.
 run: 
 	go run ./cmd/api
 build:
@@ -21,7 +23,8 @@ format:
 	go fmt ./...
 lint:
 	golangci-lint run
-
+test:
+	go test ./...
 debug:
 	dlv debug ./cmd/api
 
